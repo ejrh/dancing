@@ -14,6 +14,7 @@ typedef struct Node {
 
 typedef struct Header {
     Node node;
+    int index;
     char *name;
     int size;
     int primary;
@@ -24,7 +25,7 @@ typedef struct Matrix {
     Node *nodes;
     int num_headers;
     Header *headers;
-    Node root;
+    Header root;
 } Matrix;
 
 #define foreachlink(h,a,x) for (x = (h)->a; x != (h); x = x->a)
@@ -66,11 +67,13 @@ void restore_vertically(Node *node) {
 Header *allocate_header(Matrix *matrix) {
     Header *header = &matrix->headers[matrix->num_headers];
 
-    Node *last = matrix->root.left;
+    Node *last = matrix->root.node.left;
     insert_horizontally((Node *) header, last);
+    matrix->root.size++;
 
     header->node.up = (Node *) header;
     header->node.down = (Node *) header;
+    header->index = matrix->num_headers;
     header->size = 0;
 
     matrix->num_headers++;
@@ -101,10 +104,13 @@ Matrix *create_matrix(int max_nodes, int max_headers) {
     matrix->nodes = malloc(max_nodes * sizeof(Node));
     matrix->num_headers = 0;
     matrix->headers = malloc(max_headers * sizeof(Header));
-    matrix->root.up = &matrix->root;
-    matrix->root.down = &matrix->root;
-    matrix->root.left = &matrix->root;
-    matrix->root.right = &matrix->root;
+    matrix->root.node.up = (Node *) &matrix->root;
+    matrix->root.node.down = (Node *) &matrix->root;
+    matrix->root.node.left = (Node *) &matrix->root;
+    matrix->root.node.right = (Node *) &matrix->root;
+    matrix->root.index = -1;
+    matrix->root.name = "ROOT";
+    matrix->root.size = 0;
     return matrix;
 }
 
@@ -127,7 +133,7 @@ Header *create_column(Matrix *matrix, int primary, char *fmt, ...) {
 void destroy_matrix(Matrix *matrix) {
     free(matrix->nodes);
     Node *n;
-    foreachlink(&matrix->root, right, n) {
+    foreachlink(&matrix->root.node, right, n) {
         Header *h = (Header *) n;
         free(h->name);
     }
@@ -137,51 +143,37 @@ void destroy_matrix(Matrix *matrix) {
 
 void print_matrix(Matrix *matrix) {
     Node *n;
-    Header *visible_columns[100];
-    int num_visible_columns = 0;
-    foreachlink(&matrix->root, right, n) {
+    printf("ROOT");
+    int col = 0;
+    foreachlink(&matrix->root.node, right, n) {
         Header *column = (Header *) n;
+        while (col++ < column->index)
+            printf("\t");
         printf("\t%s (%d)", column->name, column->size);
-        visible_columns[num_visible_columns] = column;
-        num_visible_columns++;
     }
     printf("\n");
 
-    int col_pos = 0;
-    foreachlink(&matrix->root, right, n) {
+    foreachlink(&matrix->root.node, right, n) {
+        Header *column = (Header *) n;
         Node *n2;
         foreachlink(n, down, n2) {
-            Node *visible_nodes[100];
-            memset(visible_nodes, 0, sizeof(visible_nodes));
-            visible_nodes[col_pos] = n2;
+            Node *p = n2->left;
+            if (p->column->index < column->index)
+                continue;
+            col = 0;
+            while (col++ < column->index)
+                printf("\t0");
+            printf("\t1");
             Node *n3;
             foreachlink(n2, right, n3) {
-                Header *n3_col = n3->column;
-                int i;
-                for (i = 0; i < num_visible_columns; i++) {
-                    if (visible_columns[i] == n3_col) {
-                        visible_nodes[i] = n3;
-                        break;
-                    }
-                }
-                if (i <= col_pos) {
-                    goto skip_row;
-                }
-            }
-
-            int i;
-            for (i = 0; i < num_visible_columns; i++) {
-                if (visible_nodes[i]) {
-                    printf("\t1");
-                } else {
+                while (col++ < n3->column->index)
                     printf("\t0");
-                }
+                printf("\t1");
             }
+            while (col++ < matrix->root.size)
+                printf("\t0");
             printf("\n");
-        skip_row:
-            ;
         }
-        col_pos++;
     }
 }
 
@@ -189,7 +181,7 @@ Header *choose_column(Matrix *matrix) {
     int best_size = INT_MAX;
     Header *best_column = NULL;
     Node *n;
-    foreachlink(&matrix->root, right, n) {
+    foreachlink((Node *) &matrix->root, right, n) {
         Header *column = (Header *) n;
         if (!column->primary)
             continue;
@@ -209,10 +201,12 @@ void cover_column(Matrix *matrix, Header *column) {
     foreachlink((Node *) column, down, n) {
         Node *n2;
         foreachlink(n, right, n2) {
+            //printf("Hiding value in column %s\n", n2->column->name);
             remove_vertically(n2);
             n2->column->size--;
         }
     }
+    matrix->root.size--;
 }
 
 void uncover_column(Matrix *matrix, Header *column) {
@@ -226,6 +220,7 @@ void uncover_column(Matrix *matrix, Header *column) {
             restore_vertically(n2);
         }
     }
+    matrix->root.size++;
 }
 
 void print_row(Node *row) {
