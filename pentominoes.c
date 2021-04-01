@@ -145,7 +145,7 @@ static Matrix *create_pentominoes_problem() {
 
 
 static void decode_column(Header *column, char **name, int *r, int *c, int *num_cells) {
-    if (isalpha(column->name[0]))
+    if (isalpha((int) column->name[0]))
         *name = column->name;
     else {
         r[*num_cells] = column->name[0] - 48;
