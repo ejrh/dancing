@@ -139,13 +139,18 @@ static Matrix *create_pentominoes_problem() {
 }
 
 
+int found_solution(Matrix *matrix, Node **solution, int solution_size) {
+    print_solution(solution, solution_size);
+    return 0;
+}
+
+
 int main(int argc, char *argv[]) {
     Matrix *matrix = create_pentominoes_problem();
 
     print_matrix(matrix);
 
-    Node *solution[100];
-    search_matrix(matrix, 0, solution);
+    search_matrix(matrix, found_solution);
 
     destroy_matrix(matrix);
     return 0;

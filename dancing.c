@@ -238,10 +238,10 @@ static void print_row(Node *row) {
 }
 
 
-static void print_solution(int size, Node **solution) {
+void print_solution(Node **solution, int solution_size) {
     int i;
     printf("Solution:   ");
-    for (i = 0; i < size; i++) {
+    for (i = 0; i < solution_size; i++) {
         print_row(solution[i]);
         printf(";   ");
     }
@@ -249,16 +249,15 @@ static void print_solution(int size, Node **solution) {
 }
 
 
-int search_matrix(Matrix *matrix, int depth, Node **solution) {
-    if (depth == 0) {
-        matrix->search_calls = 0;
-    }
+int search_matrix_internal(Matrix *matrix, Callback solution_callback, Node **solution, int depth) {
+    int result = 0;
 
     matrix->search_calls++;
     Header *column = choose_column(matrix);
     if (column == NULL) {
-        print_solution(depth, solution);
-        return 1;
+        int result = solution_callback(matrix, solution, depth);
+        matrix->num_solutions++;
+        return result;
     }
     //printf("Chose %s of size %d\n", column->name, column->size);
 
@@ -272,18 +271,33 @@ int search_matrix(Matrix *matrix, int depth, Node **solution) {
             cover_column(matrix, col->column);
         }
 
-        search_matrix(matrix, depth + 1, solution);
+        result = search_matrix_internal(matrix, solution_callback, solution, depth + 1);
 
         foreachlink(row, left, col) {
             uncover_column(matrix, col->column);
         }
+
+        if (result)
+            break;
     }
 
     uncover_column(matrix, column);
 
-    if (depth == 0) {
-        printf("Search calls: %ld\n", matrix->search_calls);
-    }
+    return result;
+}
 
-    return 0;
+
+int search_matrix(Matrix *matrix, Callback solution_callback) {
+    matrix->search_calls = 0;
+    matrix->num_solutions = 0;
+
+    Node **solution = malloc(sizeof(Node*) * matrix->root.size);
+
+    int result = search_matrix_internal(matrix, solution_callback, solution, 0);
+
+    printf("Search calls: %ld\n", matrix->search_calls);
+    printf("Solutions found: %ld\n", matrix->num_solutions);
+    free(solution);
+
+    return result;
 }
