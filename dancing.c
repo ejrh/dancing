@@ -84,6 +84,7 @@ Matrix *create_matrix(int max_nodes, int max_headers) {
     matrix->root.index = -1;
     matrix->root.name = "ROOT";
     matrix->root.size = 0;
+    matrix->root.primary = 1;
     return matrix;
 }
 
@@ -100,6 +101,11 @@ Header *create_column(Matrix *matrix, int primary, char *fmt, ...) {
     Header *column = allocate_header(matrix);
     column->name = strdup(buffer);
     column->primary = primary;
+
+    Header *prev_column = (Header *) column->node.left;
+    if (primary && !prev_column->primary) {
+        fprintf(stderr, "Warning, primary column '%s' appears after non-primary '%s'!\n", column->name, prev_column->name);
+    }
 
     return column;
 }
@@ -179,10 +185,12 @@ static Header *choose_column(Matrix *matrix) {
     foreachlink((Node *) &matrix->root, right, n) {
         Header *column = (Header *) n;
         if (!column->primary)
-            continue;
+            break;
         if (column->size < best_size) {
             best_column = column;
             best_size = column->size;
+        if (best_size <= 1)
+            break;
         }
     }
 
