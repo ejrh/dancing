@@ -249,13 +249,13 @@ void print_solution(Node **solution, int solution_size) {
 }
 
 
-int search_matrix_internal(Matrix *matrix, Callback solution_callback, Node **solution, int depth) {
+int search_matrix_internal(Matrix *matrix, Callback solution_callback, Node **solution, int depth, void *baton) {
     int result = 0;
 
     matrix->search_calls++;
     Header *column = choose_column(matrix);
     if (column == NULL) {
-        int result = solution_callback(matrix, solution, depth);
+        int result = solution_callback(matrix, solution, depth, baton);
         matrix->num_solutions++;
         return result;
     }
@@ -271,7 +271,7 @@ int search_matrix_internal(Matrix *matrix, Callback solution_callback, Node **so
             cover_column(matrix, col->column);
         }
 
-        result = search_matrix_internal(matrix, solution_callback, solution, depth + 1);
+        result = search_matrix_internal(matrix, solution_callback, solution, depth + 1, baton);
 
         foreachlink(row, left, col) {
             uncover_column(matrix, col->column);
@@ -287,13 +287,13 @@ int search_matrix_internal(Matrix *matrix, Callback solution_callback, Node **so
 }
 
 
-int search_matrix(Matrix *matrix, Callback solution_callback) {
+int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
     matrix->search_calls = 0;
     matrix->num_solutions = 0;
 
     Node **solution = malloc(sizeof(Node*) * matrix->root.size);
 
-    int result = search_matrix_internal(matrix, solution_callback, solution, 0);
+    int result = search_matrix_internal(matrix, solution_callback, solution, 0, baton);
 
     printf("Search calls: %ld\n", matrix->search_calls);
     printf("Solutions found: %ld\n", matrix->num_solutions);

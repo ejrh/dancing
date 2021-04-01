@@ -1,7 +1,12 @@
+#include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "dancing.h"
 
+
+#define BOARD_SIZE 8
 
 #define NUM_PENTOMINOES 12
 
@@ -73,25 +78,25 @@ static int arrange_pentomino(Pentomino *p, int i, int j, int flip, int rotation,
     return 1;
 }
 
+
 static Matrix *create_pentominoes_problem() {
-    int board_size = 8;
-    int num_squares = board_size*board_size - 2*2;
+    int num_squares = BOARD_SIZE * BOARD_SIZE - 2*2;
     int num_cols = NUM_PENTOMINOES + num_squares;
     int num_rows = 0;
     int i;
     for (i = 0; i < NUM_PENTOMINOES; i++) {
         Pentomino *p = &PENTOMINOES[i];
-        num_rows += p->flips * p->rotations * (board_size + 1 - p->rows) * (board_size + 1 - p->cols);
+        num_rows += p->flips * p->rotations * (BOARD_SIZE + 1 - p->rows) * (BOARD_SIZE + 1 - p->cols);
     }
     int num_nodes = (PENTOMINO_LENGTH + 1) * num_rows;
     Matrix *matrix = create_matrix(num_nodes, num_cols);
 
-    Header *square_columns[8][8];
+    Header *square_columns[BOARD_SIZE][BOARD_SIZE];
     Header *piece_columns[NUM_PENTOMINOES];
 
-    for (i = 0; i < board_size; i++) {
+    for (i = 0; i < BOARD_SIZE; i++) {
         int j;
-        for (j = 0; j < board_size; j++) {
+        for (j = 0; j < BOARD_SIZE; j++) {
             if (i >= 3 && i <= 4 && j >= 3 && j <= 4) {
                 square_columns[i][j] = NULL;
             } else {
@@ -111,12 +116,12 @@ static Matrix *create_pentominoes_problem() {
         int flip, rotation, i, j;
         for (flip = 0; flip < p->flips; flip++)
             for (rotation = 0; rotation < p->rotations; rotation++) {
-                int maxi = board_size - ((rotation & 1) ? p->cols : p->rows);
-                int maxj = board_size - ((rotation & 1) ? p->rows : p->cols);
+                int maxi = BOARD_SIZE - ((rotation & 1) ? p->cols : p->rows);
+                int maxj = BOARD_SIZE - ((rotation & 1) ? p->rows : p->cols);
                 for (i = 0; i <= maxi; i++)
                     for (j = 0; j <= maxj; j++) {
                         Header *positions[PENTOMINO_LENGTH];
-                        if (!arrange_pentomino(p, i, j, flip, rotation, board_size, board_size, square_columns, positions))
+                        if (!arrange_pentomino(p, i, j, flip, rotation, BOARD_SIZE, BOARD_SIZE, square_columns, positions))
                             continue;
 
                         Node *node = NULL;
@@ -139,8 +144,57 @@ static Matrix *create_pentominoes_problem() {
 }
 
 
-int found_solution(Matrix *matrix, Node **solution, int solution_size) {
-    print_solution(solution, solution_size);
+static void decode_column(Header *column, char **name, int *r, int *c, int *num_cells) {
+    if (isalpha(column->name[0]))
+        *name = column->name;
+    else {
+        r[*num_cells] = column->name[0] - 48;
+        c[*num_cells] = column->name[1] - 48;
+        (*num_cells)++;
+    }
+}
+
+
+static int print_pentominoes(Matrix *matrix, Node **solution, int solution_size, void *problem) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    memset(board, 0, sizeof(board));
+    board[3][3] = ' ';
+    board[3][4] = ' ';
+    board[4][3] = ' ';
+    board[4][4] = ' ';
+
+    int i;
+    for (i = 0; i < solution_size; i++) {
+        char *name = NULL;
+        int r[PENTOMINO_LENGTH];
+        int c[PENTOMINO_LENGTH];
+        int num_cells = 0;
+
+        decode_column(solution[i]->column, &name, r, c, &num_cells);
+        Node *n;
+        foreachlink(solution[i], right, n) {
+            decode_column(n->column, &name, r, c, &num_cells);
+        }
+
+        if (name == NULL || num_cells != PENTOMINO_LENGTH) {
+            fprintf(stderr, "Warning, could not identify name, r and c\n");
+            print_solution(solution, solution_size);
+        } else {
+            int j;
+            for (j = 0; j < num_cells; j++)
+                board[r[j]][c[j]] = name[0];
+        }
+    }
+
+    printf("Pentominoes:\n");
+    for (i = 0; i < BOARD_SIZE; i++) {
+        int j;
+        for (j = 0; j < BOARD_SIZE; j++) {
+            printf(" %c", board[i][j]);
+        }
+        printf("\n");
+    }
+
     return 0;
 }
 
@@ -148,9 +202,9 @@ int found_solution(Matrix *matrix, Node **solution, int solution_size) {
 int main(int argc, char *argv[]) {
     Matrix *matrix = create_pentominoes_problem();
 
-    print_matrix(matrix);
+    //print_matrix(matrix);
 
-    search_matrix(matrix, found_solution);
+    search_matrix(matrix, print_pentominoes, NULL);
 
     destroy_matrix(matrix);
     return 0;

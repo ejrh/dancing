@@ -32,7 +32,7 @@ typedef struct Matrix {
     long int search_calls;
 } Matrix;
 
-typedef int (*Callback)(Matrix *matrix, Node **solution, int solution_size);
+typedef int (*Callback)(Matrix *matrix, Node **solution, int solution_size, void *baton);
 
 
 #define foreachlink(h,a,x) for (x = (h)->a; x != (h); x = x->a)
@@ -44,7 +44,7 @@ extern Node *create_node(Matrix *matrix, Node *after, Header *column);
 extern void destroy_matrix(Matrix *matrix);
 extern void print_matrix(Matrix *matrix);
 extern void print_solution(Node **solution, int solution_size);
-extern int search_matrix(Matrix *matrix, Callback solution_callback);
+extern int search_matrix(Matrix *matrix, Callback solution_callback, void *baton);
 
 
 #endif
