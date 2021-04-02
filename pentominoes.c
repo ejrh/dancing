@@ -40,7 +40,7 @@ static Pentomino PENTOMINOES[NUM_PENTOMINOES] = {
 };
 
 
-static int arrange_pentomino(Pentomino *p, int i, int j, int flip, int rotation, int board_rows, int board_cols, Header *square_columns[8][8], Header **positions) {
+static int arrange_pentomino(Pentomino *p, int i, int j, int flip, int rotation, int board_rows, int board_cols, NodeId square_columns[8][8], NodeId *positions) {
     int k;
     for (k = 0; k < PENTOMINO_LENGTH; k++) {
         int r = p->r[k];
@@ -68,8 +68,8 @@ static int arrange_pentomino(Pentomino *p, int i, int j, int flip, int rotation,
         if (r < 0 || c < 0 || r >= board_rows || c >= board_cols)
             return 0;
 
-        Header *pos = square_columns[r][c];
-        if (pos == NULL)
+        NodeId pos = square_columns[r][c];
+        if (pos == 0)
             return 0;
 
         positions[k] = pos;
@@ -91,14 +91,14 @@ static Matrix *create_pentominoes_problem() {
     int num_nodes = (PENTOMINO_LENGTH + 1) * num_rows;
     Matrix *matrix = create_matrix(num_nodes, num_cols);
 
-    Header *square_columns[BOARD_SIZE][BOARD_SIZE];
-    Header *piece_columns[NUM_PENTOMINOES];
+    NodeId square_columns[BOARD_SIZE][BOARD_SIZE];
+    NodeId piece_columns[NUM_PENTOMINOES];
 
     for (i = 0; i < BOARD_SIZE; i++) {
         int j;
         for (j = 0; j < BOARD_SIZE; j++) {
             if (i >= 3 && i <= 4 && j >= 3 && j <= 4) {
-                square_columns[i][j] = NULL;
+                square_columns[i][j] = 0;
             } else {
                 square_columns[i][j] = create_column(matrix, 1, "%d%d", i, j);
             }
@@ -112,7 +112,7 @@ static Matrix *create_pentominoes_problem() {
     int pi;
     for (pi = 0; pi < NUM_PENTOMINOES; pi++) {
         Pentomino *p = &PENTOMINOES[pi];
-        Header *piece_col = piece_columns[pi];
+        NodeId piece_col = piece_columns[pi];
         int flip, rotation, i, j;
         for (flip = 0; flip < p->flips; flip++)
             for (rotation = 0; rotation < p->rotations; rotation++) {
@@ -120,11 +120,11 @@ static Matrix *create_pentominoes_problem() {
                 int maxj = BOARD_SIZE - ((rotation & 1) ? p->rows : p->cols);
                 for (i = 0; i <= maxi; i++)
                     for (j = 0; j <= maxj; j++) {
-                        Header *positions[PENTOMINO_LENGTH];
+                        NodeId positions[PENTOMINO_LENGTH];
                         if (!arrange_pentomino(p, i, j, flip, rotation, BOARD_SIZE, BOARD_SIZE, square_columns, positions))
                             continue;
 
-                        Node *node = NULL;
+                        NodeId node = 0;
                         int k;
                         for (k = 0; k < PENTOMINO_LENGTH; k++) {
                             node = create_node(matrix, node, positions[k]);
@@ -144,18 +144,18 @@ static Matrix *create_pentominoes_problem() {
 }
 
 
-static void decode_column(Header *column, char **name, int *r, int *c, int *num_cells) {
-    if (isalpha((int) column->name[0]))
-        *name = column->name;
+static void decode_column(char *column_name, char **name, int *r, int *c, int *num_cells) {
+    if (isalpha((int) column_name[0]))
+        *name = column_name;
     else {
-        r[*num_cells] = column->name[0] - 48;
-        c[*num_cells] = column->name[1] - 48;
+        r[*num_cells] = column_name[0] - 48;
+        c[*num_cells] = column_name[1] - 48;
         (*num_cells)++;
     }
 }
 
 
-static int print_pentominoes(Matrix *matrix, Node **solution, int solution_size, void *problem) {
+static int print_pentominoes(Matrix *matrix, NodeId *solution, int solution_size, void *problem) {
     int board[BOARD_SIZE][BOARD_SIZE];
     memset(board, 0, sizeof(board));
     board[3][3] = ' ';
@@ -170,15 +170,15 @@ static int print_pentominoes(Matrix *matrix, Node **solution, int solution_size,
         int c[PENTOMINO_LENGTH];
         int num_cells = 0;
 
-        decode_column(solution[i]->column, &name, r, c, &num_cells);
-        Node *n;
+        decode_column(HEADER(NODE(solution[i]).column).name, &name, r, c, &num_cells);
+        NodeId n;
         foreachlink(solution[i], right, n) {
-            decode_column(n->column, &name, r, c, &num_cells);
+            decode_column(HEADER(NODE(n).column).name, &name, r, c, &num_cells);
         }
 
         if (name == NULL || num_cells != PENTOMINO_LENGTH) {
             fprintf(stderr, "Warning, could not identify name, r and c\n");
-            print_solution(solution, solution_size);
+            print_solution(matrix, solution, solution_size);
         } else {
             int j;
             for (j = 0; j < num_cells; j++)

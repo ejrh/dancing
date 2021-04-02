@@ -4,46 +4,66 @@
 #define DANCING_H
 
 
-struct Header;
+#define INDEX_NODES 1
+
+#if INDEX_NODES
+    typedef unsigned int NodeId;
+
+    #define NODE(id) (matrix->nodes[id])
+    #define HEADER(id) (matrix->headers[id])
+    #define ROOT 0
+#else
+    struct Header;
+
+    typedef struct Node *NodeId;
+
+    #define NODE(id) (*id)
+    #define HEADER(id) (*(Header *) id)
+    #define ROOT ((Node *) &matrix->headers[0])
+#endif
 
 typedef struct Node {
-    struct Node *up, *down;
-    struct Node *left, *right;
-    struct Header *column;
+    NodeId up, down;
+    NodeId left, right;
+    NodeId column;
 } Node;
 
 typedef struct Header {
+#if INDEX_NODES == 0
     Node node;
-    int index;
+#endif
     char *name;
+    int index;
     int size;
     int primary;
 } Header;
 
 typedef struct Matrix {
     int num_nodes;
+    int max_nodes;
     Node *nodes;
     int num_headers;
+    int max_headers;
     Header *headers;
-    Header root;
 
     /* Statistics. */
     long int num_solutions;
     long int search_calls;
 } Matrix;
 
-typedef int (*Callback)(Matrix *matrix, Node **solution, int solution_size, void *baton);
+typedef int (*Callback)(Matrix *matrix, NodeId *solution, int solution_size, void *baton);
 
 
-#define foreachlink(h,a,x) for (x = (h)->a; x != (h); x = x->a)
+#define foreachlink(h,a,x) for (x = NODE(h).a; x != (h); x = NODE(x).a)
 
 
-extern Matrix *create_matrix(int max_nodes, int max_headers);
-extern Header *create_column(Matrix *matrix, int primary, char *fmt, ...);
-extern Node *create_node(Matrix *matrix, Node *after, Header *column);
+extern Matrix *create_matrix();
+extern NodeId create_column(Matrix *matrix, int primary, char *fmt, ...);
+extern NodeId create_node(Matrix *matrix, NodeId after, NodeId column);
 extern void destroy_matrix(Matrix *matrix);
 extern void print_matrix(Matrix *matrix);
-extern void print_solution(Node **solution, int solution_size);
+extern void print_row(Matrix *matrix, NodeId row);
+extern void print_solution(Matrix *matrix, NodeId *solution, int solution_size);
 extern int search_matrix(Matrix *matrix, Callback solution_callback, void *baton);
 
 
