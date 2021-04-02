@@ -10,25 +10,25 @@ typedef struct {
 
 
 static Matrix *create_queens_problem(int size) {
-    int r_cols = size;
-    int f_cols = size;
-    int a_cols = 2 * size - 1;
-    int b_cols = 2 * size - 1;
-    int num_nodes = 4 * size * size;
-    Matrix *matrix = create_matrix(num_nodes, r_cols + f_cols + a_cols + b_cols);
+    Matrix *matrix = create_matrix();
 
+    NodeId r_cols[size];
+    NodeId f_cols[size];
+    NodeId a_cols[2 * size - 1];
+    NodeId b_cols[2 * size - 1];
+    
     int i;
     for (i = 0; i < size; i++) {
-        create_column(matrix, 1, "R%d", i);
+        r_cols[i] = create_column(matrix, 1, "R%d", i);
     }
     for (i = 0; i < size; i++) {
-        create_column(matrix, 1, "F%d", i);
+        f_cols[i] = create_column(matrix, 1, "F%d", i);
     }
     for (i = 0; i < 2 * size - 1; i++) {
-        create_column(matrix, 0, "A%d", i);
+        a_cols[i] = create_column(matrix, 0, "A%d", i);
     }
     for (i = 0; i < 2 * size - 1; i++) {
-        create_column(matrix, 0, "B%d", i);
+        b_cols[i] = create_column(matrix, 0, "B%d", i);
     }
 
     for (i = 0; i < size; i++) {
@@ -36,11 +36,11 @@ static Matrix *create_queens_problem(int size) {
         for (j = 0; j < size; j++) {
             int a = i + j;
             int b = size - 1 - i + j;
-            Header *r_col = &matrix->headers[i];
-            Header *f_col = &matrix->headers[r_cols + j];
-            Header *a_col = &matrix->headers[r_cols + f_cols + a];
-            Header *b_col = &matrix->headers[r_cols + f_cols + a_cols + b];
-            Node *node = create_node(matrix, NULL, r_col);
+            NodeId r_col = r_cols[i];
+            NodeId f_col = f_cols[j];
+            NodeId a_col = a_cols[a];
+            NodeId b_col = b_cols[b];
+            NodeId node = create_node(matrix, 0, r_col);
             node = create_node(matrix, node, f_col);
             node = create_node(matrix, node, a_col);
             node = create_node(matrix, node, b_col);
@@ -51,30 +51,30 @@ static Matrix *create_queens_problem(int size) {
 }
 
 
-static void decode_column(Header *column, int *rank, int *file) {
-    if (column->name[0] == 'R')
-        *rank = atoi(&column->name[1]);
-    else if (column->name[0] == 'F')
-        *file = atoi(&column->name[1]);
+static void decode_column(char *column_name, int *rank, int *file) {
+    if (column_name[0] == 'R')
+        *rank = atoi(&column_name[1]);
+    else if (column_name[0] == 'F')
+        *file = atoi(&column_name[1]);
 }
 
 
-static int print_queens(Matrix *matrix, Node **solution, int solution_size, QueensProblem *problem) {
+static int print_queens(Matrix *matrix, NodeId *solution, int solution_size, QueensProblem *problem) {
     int *board = calloc(problem->size * problem->size, sizeof(int));
-
+    
     int i;
     for (i = 0; i < solution_size; i++) {
-        Node *n;
+        NodeId n;
         int rank = -1, file = -1;
 
-        decode_column(solution[i]->column, &rank, &file);
+        decode_column(HEADER(NODE(solution[i]).column).name, &rank, &file);
         foreachlink(solution[i], right, n) {
-            decode_column(n->column, &rank, &file);
+            decode_column(HEADER(NODE(n).column).name, &rank, &file);
         }
 
         if (rank == -1 || file == -1) {
             fprintf(stderr, "Warning, could not identify rank and file\n");
-            print_solution(solution, solution_size);
+            print_solution(matrix, solution, solution_size);
         } else {
             board[rank * problem->size + file] = 1;
         }
@@ -88,7 +88,7 @@ static int print_queens(Matrix *matrix, Node **solution, int solution_size, Quee
         }
         printf("\n");
     }
-
+    
     free(board);
 
     return 0;
@@ -99,7 +99,6 @@ int main(int argc, char *argv[]) {
     QueensProblem problem;
     problem.size = 8;
     Matrix *matrix = create_queens_problem(problem.size);
-
     //print_matrix(matrix);
 
     search_matrix(matrix, (Callback) print_queens, &problem);

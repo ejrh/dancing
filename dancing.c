@@ -8,89 +8,118 @@
 #include "dancing.h"
 
 
-static void insert_horizontally(Node *node, Node *after) {
-    node->left = after;
-    node->right = after->right;
-    after->right = node;
-    node->right->left = node;
+static void *array_allocate(void **array, int *max, int *num, size_t size) {
+    if (*num >= *max) {
+	    (*max) *= 2;
+	    *array = realloc(*array, *max * size);
+    }
+    void *ptr = *array + *num * size;
+    (*num)++;
+    return ptr;
+}
+
+#define array_alloc(array,max,num) array_allocate((void **) &array, &max, &num, sizeof(array[0]))
+
+
+static void insert_horizontally(Matrix *matrix, NodeId node, NodeId after) {
+    NODE(node).left = after;
+    NODE(node).right = NODE(after).right;
+    NODE(after).right = node;
+    NODE(NODE(node).right).left = node;
 }
 
 
-static void insert_vertically(Node *node, Node *after) {
-    node->up = after;
-    node->down = after->down;
-    after->down = node;
-    node->down->up = node;
+static void insert_vertically(Matrix *matrix, NodeId node, NodeId after) {
+    NODE(node).up = after;
+    NODE(node).down = NODE(after).down;
+    NODE(after).down = node;
+    NODE(NODE(node).down).up = node;
 }
 
 
-static void remove_horizontally(Node *node) {
-    node->left->right = node->right;
-    node->right->left = node->left;
+static void remove_horizontally(Matrix *matrix, NodeId node) {
+    NODE(NODE(node).left).right = NODE(node).right;
+    NODE(NODE(node).right).left = NODE(node).left;
 }
 
 
-static void remove_vertically(Node *node) {
-    node->up->down = node->down;
-    node->down->up = node->up;
+static void remove_vertically(Matrix *matrix, NodeId node) {
+    NODE(NODE(node).up).down = NODE(node).down;
+    NODE(NODE(node).down).up = NODE(node).up;
 }
 
 
-static void restore_horizontally(Node *node) {
-    node->left->right = node;
-    node->right->left = node;
+static void restore_horizontally(Matrix *matrix, NodeId node) {
+    NODE(NODE(node).left).right = node;
+    NODE(NODE(node).right).left = node;
 }
 
 
-static void restore_vertically(Node *node) {
-    node->up->down = node;
-    node->down->up = node;
+static void restore_vertically(Matrix *matrix, NodeId node) {
+    NODE(NODE(node).up).down = node;
+    NODE(NODE(node).down).up = node;
 }
 
 
-static Header *allocate_header(Matrix *matrix) {
-    Header *header = &matrix->headers[matrix->num_headers];
-
-    Node *last = matrix->root.node.left;
-    insert_horizontally((Node *) header, last);
-    matrix->root.size++;
-
-    header->node.up = (Node *) header;
-    header->node.down = (Node *) header;
-    header->index = matrix->num_headers;
-    header->size = 0;
-
-    matrix->num_headers++;
-    return header;
+static NodeId allocate_node(Matrix *matrix) {
+    #if INDEX_NODES
+        NodeId id = matrix->num_nodes;
+        array_alloc(matrix->nodes, matrix->max_nodes, matrix->num_nodes);
+        return id;
+    #else
+        return array_alloc(matrix->nodes, matrix->max_nodes, matrix->num_nodes);
+    #endif
 }
 
 
-static Node *allocate_node(Matrix *matrix) {
-    Node *node = &matrix->nodes[matrix->num_nodes];
-    matrix->num_nodes++;
-    return node;
+static NodeId allocate_header(Matrix *matrix) {
+    #if INDEX_NODES
+        if (matrix->num_nodes != matrix->num_headers) {
+            fprintf(stderr, "Warning, non-header nodes already inserted!");
+            matrix->num_headers = matrix->num_nodes;
+        }
+        NodeId id = allocate_node(matrix);
+        array_alloc(matrix->headers, matrix->max_headers, matrix->num_headers);
+    #else
+        NodeId id = array_alloc(matrix->headers, matrix->max_headers, matrix->num_headers);
+    #endif
+
+    if (id != ROOT) {
+        NodeId last = NODE(ROOT).left;
+        insert_horizontally(matrix, id, last);
+    } else {
+        NODE(id).left = id;
+        NODE(id).right = id;
+    }
+
+    NODE(id).up = id;
+    NODE(id).down = id;
+    HEADER(id).index = matrix->num_headers - 1;
+    HEADER(id).size = 0;
+    return id;
 }
 
 
-Matrix *create_matrix(int max_nodes, int max_headers) {
+Matrix *create_matrix() {
     Matrix *matrix = malloc(sizeof(Matrix));
+    matrix->max_nodes = 10000;
     matrix->num_nodes = 0;
-    matrix->nodes = malloc(max_nodes * sizeof(Node));
+    matrix->nodes = malloc(matrix->max_nodes * sizeof(Node));
+    matrix->max_headers = 1000;
     matrix->num_headers = 0;
-    matrix->headers = malloc(max_headers * sizeof(Header));
-    matrix->root.node.up = (Node *) &matrix->root;
-    matrix->root.node.down = (Node *) &matrix->root;
-    matrix->root.node.left = (Node *) &matrix->root;
-    matrix->root.node.right = (Node *) &matrix->root;
-    matrix->root.index = -1;
-    matrix->root.name = "ROOT";
-    matrix->root.size = 0;
-    matrix->root.primary = 1;
+    matrix->headers = malloc(matrix->max_headers * sizeof(Header));
+    NodeId root = allocate_header(matrix);
+    NODE(root).up = root;
+    NODE(root).down = root;
+    NODE(root).left = root;
+    NODE(root).right = root;
+    HEADER(root).name = "ROOT";
+    HEADER(root).primary = 1;
     return matrix;
 }
 
 
-Header *create_column(Matrix *matrix, int primary, char *fmt, ...) {
+NodeId create_column(Matrix *matrix, int primary, char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
 
@@ -99,31 +128,31 @@ Header *create_column(Matrix *matrix, int primary, char *fmt, ...) {
 
     va_end(args);
 
-    Header *column = allocate_header(matrix);
-    column->name = strdup(buffer);
-    column->primary = primary;
+    NodeId column = allocate_header(matrix);
+    HEADER(column).name = strdup(buffer);
+    HEADER(column).primary = primary;
 
-    Header *prev_column = (Header *) column->node.left;
-    if (primary && !prev_column->primary) {
-        fprintf(stderr, "Warning, primary column '%s' appears after non-primary '%s'!\n", column->name, prev_column->name);
+    NodeId prev_column = NODE(column).left;
+    if (primary && !HEADER(prev_column).primary) {
+        fprintf(stderr, "Warning, primary column '%s' appears after non-primary '%s'!\n", HEADER(column).name, HEADER(prev_column).name);
     }
 
     return column;
 }
 
 
-Node *create_node(Matrix *matrix, Node *after, Header *column) {
-    Node *node = allocate_node(matrix);
-    node->column = column;
-    Node *last = column->node.up;
-    insert_vertically(node, last);
-    column->size++;
+NodeId create_node(Matrix *matrix, NodeId after, NodeId column) {
+    NodeId node = allocate_node(matrix);
+    NODE(node).column = column;
+    NodeId last = NODE(column).up;
+    insert_vertically(matrix, node, last);
+    HEADER(column).size++;
 
-    if (after == NULL) {
-        node->left = node;
-        node->right = node;
+    if (after == 0) {
+        NODE(node).left = node;
+        NODE(node).right = node;
     } else {
-        insert_horizontally(node, after);
+        insert_horizontally(matrix, node, after);
     }
 
     return node;
@@ -131,47 +160,44 @@ Node *create_node(Matrix *matrix, Node *after, Header *column) {
 
 
 void destroy_matrix(Matrix *matrix) {
-    free(matrix->nodes);
-    Node *n;
-    foreachlink(&matrix->root.node, right, n) {
-        Header *h = (Header *) n;
-        free(h->name);
+    NodeId n;
+    foreachlink(ROOT, right, n) {
+        free(HEADER(n).name);
     }
+    free(matrix->nodes);
     free(matrix->headers);
     free(matrix);
 }
 
 
 void print_matrix(Matrix *matrix) {
-    Node *n;
+    NodeId n;
     printf("ROOT");
-    int col = 0;
-    foreachlink(&matrix->root.node, right, n) {
-        Header *column = (Header *) n;
-        while (col++ < column->index)
+    int col = 1;
+    foreachlink(ROOT, right, n) {
+        while (col++ < HEADER(n).index)
             printf("\t");
-        printf("\t%s (%d)", column->name, column->size);
+        printf("\t%s (%d)", HEADER(n).name, HEADER(n).size);
     }
     printf("\n");
 
-    foreachlink(&matrix->root.node, right, n) {
-        Header *column = (Header *) n;
-        Node *n2;
+    foreachlink(ROOT, right, n) {
+        NodeId n2;
         foreachlink(n, down, n2) {
-            Node *p = n2->left;
-            if (p->column->index < column->index)
+            NodeId p = NODE(n2).left;
+            if (HEADER(NODE(p).column).index < HEADER(n).index)
                 continue;
-            col = 0;
-            while (col++ < column->index)
+            col = 1;
+            while (col++ < HEADER(n).index)
                 printf("\t0");
             printf("\t1");
-            Node *n3;
+            NodeId n3;
             foreachlink(n2, right, n3) {
-                while (col++ < n3->column->index)
+                while (col++ < HEADER(NODE(n3).column).index)
                     printf("\t0");
                 printf("\t1");
             }
-            while (col++ < matrix->root.size)
+            while (col++ < HEADER(ROOT).size)
                 printf("\t0");
             printf("\n");
         }
@@ -179,17 +205,16 @@ void print_matrix(Matrix *matrix) {
 }
 
 
-static Header *choose_column(Matrix *matrix) {
+static NodeId choose_column(Matrix *matrix) {
     int best_size = INT_MAX;
-    Header *best_column = NULL;
-    Node *n;
-    foreachlink((Node *) &matrix->root, right, n) {
-        Header *column = (Header *) n;
-        if (!column->primary)
+    NodeId best_column = 0;
+    NodeId n;
+    foreachlink(ROOT, right, n) {
+        if (!HEADER(n).primary)
             break;
-        if (column->size < best_size) {
-            best_column = column;
-            best_size = column->size;
+        if (HEADER(n).size < best_size) {
+            best_column = n;
+            best_size = HEADER(n).size;
         if (best_size <= 1)
             break;
         }
@@ -199,63 +224,63 @@ static Header *choose_column(Matrix *matrix) {
 }
 
 
-static void cover_column(Matrix *matrix, Header *column) {
+static void cover_column(Matrix *matrix, NodeId column) {
     //printf("Covering %s\n", column->name);
-    remove_horizontally((Node *) column);
-    Node *n;
-    foreachlink((Node *) column, down, n) {
-        Node *n2;
+    remove_horizontally(matrix, column);
+    NodeId n;
+    foreachlink(column, down, n) {
+        NodeId n2;
         foreachlink(n, right, n2) {
             //printf("Hiding value in column %s\n", n2->column->name);
-            remove_vertically(n2);
-            n2->column->size--;
+            remove_vertically(matrix, n2);
+            HEADER(NODE(n2).column).size--;
         }
     }
-    matrix->root.size--;
+    //matrix->root.size--;
 }
 
 
-static void uncover_column(Matrix *matrix, Header *column) {
+static void uncover_column(Matrix *matrix, NodeId column) {
     //printf("Uncovering %s\n", column->name);
-    restore_horizontally((Node *) column);
-    Node *n;
-    foreachlink((Node *) column, up, n) {
-        Node *n2;
+    restore_horizontally(matrix, column);
+    NodeId n;
+    foreachlink(column, up, n) {
+        NodeId n2;
         foreachlink(n, left, n2) {
-            n2->column->size++;
-            restore_vertically(n2);
+            HEADER(NODE(n2).column).size++;
+            restore_vertically(matrix, n2);
         }
     }
-    matrix->root.size++;
+    //matrix->root.size++;
 }
 
 
-static void print_row(Node *row) {
-    printf("%s", row->column->name);
-    Node *n;
+void print_row(Matrix *matrix, NodeId row) {
+    printf("%s", HEADER(NODE(row).column).name);
+    NodeId n;
     foreachlink(row, right, n) {
-        printf(", %s", n->column->name);
+        printf(", %s", HEADER(NODE(n).column).name);
     }
 }
 
 
-void print_solution(Node **solution, int solution_size) {
+void print_solution(Matrix *matrix, NodeId *solution, int solution_size) {
     int i;
     printf("Solution:   ");
     for (i = 0; i < solution_size; i++) {
-        print_row(solution[i]);
+        print_row(matrix, solution[i]);
         printf(";   ");
     }
     printf("\n");
 }
 
 
-int search_matrix_internal(Matrix *matrix, Callback solution_callback, Node **solution, int depth, void *baton) {
+static int search_matrix_internal(Matrix *matrix, Callback solution_callback, NodeId *solution, int depth, void *baton) {
     int result = 0;
 
     matrix->search_calls++;
-    Header *column = choose_column(matrix);
-    if (column == NULL) {
+    NodeId column = choose_column(matrix);
+    if (column == 0) {
         int result = solution_callback(matrix, solution, depth, baton);
         matrix->num_solutions++;
         return result;
@@ -264,18 +289,18 @@ int search_matrix_internal(Matrix *matrix, Callback solution_callback, Node **so
 
     cover_column(matrix, column);
 
-    Node *row;
-    foreachlink((Node *) column, down, row) {
+    NodeId row;
+    foreachlink(column, down, row) {
         solution[depth] = row;
-        Node *col;
+        NodeId col;
         foreachlink(row, right, col) {
-            cover_column(matrix, col->column);
+            cover_column(matrix, NODE(col).column);
         }
 
         result = search_matrix_internal(matrix, solution_callback, solution, depth + 1, baton);
 
         foreachlink(row, left, col) {
-            uncover_column(matrix, col->column);
+            uncover_column(matrix, NODE(col).column);
         }
 
         if (result)
@@ -292,7 +317,7 @@ int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
     matrix->search_calls = 0;
     matrix->num_solutions = 0;
 
-    Node **solution = malloc(sizeof(Node*) * matrix->root.size);
+    NodeId *solution = malloc(sizeof(NodeId) * matrix->num_headers);
 
     struct timespec start_time;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
