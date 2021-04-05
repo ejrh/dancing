@@ -1,8 +1,9 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 
 #include "dancing.h"
 
@@ -293,10 +294,20 @@ int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
 
     Node **solution = malloc(sizeof(Node*) * matrix->root.size);
 
+    struct timespec start_time;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
+
     int result = search_matrix_internal(matrix, solution_callback, solution, 0, baton);
+
+    struct timespec stop_time;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop_time);
+
+    double search_time = stop_time.tv_sec + stop_time.tv_nsec/1E+9
+                       - start_time.tv_sec - start_time.tv_nsec/1E+9;
 
     printf("Search calls: %ld\n", matrix->search_calls);
     printf("Solutions found: %ld\n", matrix->num_solutions);
+    printf("Search time: %0.3f seconds\n", search_time);
     free(solution);
 
     return result;
