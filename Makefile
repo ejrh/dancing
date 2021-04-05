@@ -1,6 +1,6 @@
 CFLAGS = -Wall -Werror $(OPT)
 
-all: queens pentominoes
+all: queens pentominoes sudoku
 
 SHARED_FILES = dancing.c dancing.h
 SHARED_C = dancing.c
@@ -11,6 +11,9 @@ queens: $(SHARED_FILES) queens.c
 
 pentominoes: $(SHARED_FILES) pentominoes.c
 	$(CC) -o $@ $(SHARED_C) pentominoes.c $(CFLAGS)
+
+sudoku: $(SHARED_FILES) sudoku.c
+	$(CC) -o $@ $(SHARED_C) sudoku.c $(CFLAGS)
 
 %.o: %.c $(HEADERS)
 	$(CC) -c $< $(CFLAGS)
