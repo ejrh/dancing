@@ -155,7 +155,7 @@ static void decode_column(char *column_name, char **name, int *r, int *c, int *n
 }
 
 
-static int print_pentominoes(Matrix *matrix, NodeId *solution, int solution_size, void *problem) {
+static int print_pentominoes(Matrix *matrix, void *problem) {
     int board[BOARD_SIZE][BOARD_SIZE];
     memset(board, 0, sizeof(board));
     board[3][3] = ' ';
@@ -164,21 +164,21 @@ static int print_pentominoes(Matrix *matrix, NodeId *solution, int solution_size
     board[4][4] = ' ';
 
     int i;
-    for (i = 0; i < solution_size; i++) {
+    for (i = 0; i < matrix->solution_size; i++) {
         char *name = NULL;
         int r[PENTOMINO_LENGTH];
         int c[PENTOMINO_LENGTH];
         int num_cells = 0;
 
-        decode_column(HEADER(NODE(solution[i]).column).name, &name, r, c, &num_cells);
+        decode_column(HEADER(NODE(matrix->solution[i]).column).name, &name, r, c, &num_cells);
         NodeId n;
-        foreachlink(solution[i], right, n) {
+        foreachlink(matrix->solution[i], right, n) {
             decode_column(HEADER(NODE(n).column).name, &name, r, c, &num_cells);
         }
 
         if (name == NULL || num_cells != PENTOMINO_LENGTH) {
             fprintf(stderr, "Warning, could not identify name, r and c\n");
-            print_solution(matrix, solution, solution_size);
+            print_row(matrix, n);
         } else {
             int j;
             for (j = 0; j < num_cells; j++)

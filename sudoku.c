@@ -75,23 +75,23 @@ static void decode_column(char *column_name, int *row, int *col, char *symbol) {
 }
 
 
-static int print_sudoku(Matrix *matrix, NodeId *solution, int solution_size, SudokuProblem *problem) {
+static int print_sudoku(Matrix *matrix, SudokuProblem *problem) {
     char *board = calloc(problem->size * problem->size, sizeof(int));
 
     int i;
-    for (i = 0; i < solution_size; i++) {
+    for (i = 0; i < matrix->solution_size; i++) {
         NodeId n;
         int row = -1, col = -1;
         char symbol = '.';
 
-        decode_column(HEADER(NODE(solution[i]).column).name, &row, &col, &symbol);
-        foreachlink(solution[i], right, n) {
+        decode_column(HEADER(NODE(matrix->solution[i]).column).name, &row, &col, &symbol);
+        foreachlink(matrix->solution[i], right, n) {
             decode_column(HEADER(NODE(n).column).name, &row, &col, &symbol);
         }
 
         if (row == -1 || col == -1 || symbol == -1) {
             fprintf(stderr, "Warning, could not identify row, col and symbol\n");
-            print_solution(matrix, solution, solution_size);
+            print_row(matrix, n);
         } else {
             board[row * problem->size + col] = symbol;
         }
