@@ -45,6 +45,7 @@ typedef struct Matrix {
     int num_headers;
     int max_headers;
     Header *headers;
+    int num_rows;
 
     /* Statistics. */
     long int num_solutions;

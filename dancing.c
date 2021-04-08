@@ -109,6 +109,7 @@ Matrix *create_matrix() {
     matrix->num_headers = 0;
     matrix->headers = malloc(matrix->max_headers * sizeof(Header));
     NodeId root = allocate_header(matrix);
+    matrix->num_rows = 0;
     NODE(root).up = root;
     NODE(root).down = root;
     NODE(root).left = root;
@@ -151,6 +152,7 @@ NodeId create_node(Matrix *matrix, NodeId after, NodeId column) {
     if (after == 0) {
         NODE(node).left = node;
         NODE(node).right = node;
+        matrix->num_rows++;
     } else {
         insert_horizontally(matrix, node, after);
     }
@@ -330,6 +332,7 @@ int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
     double search_time = stop_time.tv_sec + stop_time.tv_nsec/1E+9
                        - start_time.tv_sec - start_time.tv_nsec/1E+9;
 
+    printf("Matrix size: %d columns, %d rows, %d cells\n", matrix->num_headers - 1, matrix->num_rows, matrix->num_nodes);
     printf("Search calls: %ld\n", matrix->search_calls);
     printf("Solutions found: %ld\n", matrix->num_solutions);
     printf("Search time: %0.3f seconds\n", search_time);
