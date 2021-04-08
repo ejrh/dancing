@@ -280,13 +280,13 @@ void print_solution(Matrix *matrix) {
 }
 
 
-static int search_matrix_internal(Matrix *matrix, Callback solution_callback, int depth, void *baton) {
+static int search_matrix_internal(Matrix *matrix, int depth) {
     int result = 0;
 
     matrix->search_calls++;
     NodeId column = choose_column(matrix);
     if (column == 0) {
-        int result = solution_callback(matrix, baton);
+        int result = matrix->solution_callback(matrix, matrix->solution_baton);
         matrix->num_solutions++;
         return result;
     }
@@ -305,7 +305,7 @@ static int search_matrix_internal(Matrix *matrix, Callback solution_callback, in
             cover_column(matrix, NODE(col).column);
         }
 
-        result = search_matrix_internal(matrix, solution_callback, depth + 1, baton);
+        result = search_matrix_internal(matrix, depth + 1);
 
         foreachlink(row, left, col) {
             uncover_column(matrix, NODE(col).column);
@@ -329,10 +329,13 @@ int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
 
     matrix->solution = array_alloc(matrix->solution, matrix->max_solution_size, matrix->num_rows);
 
+    matrix->solution_callback = solution_callback;
+    matrix->solution_baton = baton;
+
     struct timespec start_time;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
 
-    int result = search_matrix_internal(matrix, solution_callback, 0, baton);
+    int result = search_matrix_internal(matrix, 0);
 
     struct timespec stop_time;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop_time);
