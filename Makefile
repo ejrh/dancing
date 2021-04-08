@@ -1,4 +1,4 @@
-CFLAGS = -Wall -Werror $(OPT)
+CFLAGS = -Wall $(OPT)
 
 all: queens pentominoes sudoku
 
