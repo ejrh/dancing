@@ -38,6 +38,10 @@ typedef struct Header {
     int primary;
 } Header;
 
+struct Matrix;
+
+typedef int (*Callback)(struct Matrix *matrix, void *baton);
+
 typedef struct Matrix {
     int num_nodes;
     int max_nodes;
@@ -51,12 +55,13 @@ typedef struct Matrix {
     int max_solution_size;
     NodeId *solution;
 
+    Callback solution_callback;
+    void *solution_baton;
+
     /* Statistics. */
     long int num_solutions;
     long int search_calls;
 } Matrix;
-
-typedef int (*Callback)(Matrix *matrix, void *baton);
 
 
 #define foreachlink(h,a,x) for (x = NODE(h).a; x != (h); x = NODE(x).a)
