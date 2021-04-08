@@ -47,12 +47,16 @@ typedef struct Matrix {
     Header *headers;
     int num_rows;
 
+    int solution_size;
+    int max_solution_size;
+    NodeId *solution;
+
     /* Statistics. */
     long int num_solutions;
     long int search_calls;
 } Matrix;
 
-typedef int (*Callback)(Matrix *matrix, NodeId *solution, int solution_size, void *baton);
+typedef int (*Callback)(Matrix *matrix, void *baton);
 
 
 #define foreachlink(h,a,x) for (x = NODE(h).a; x != (h); x = NODE(x).a)
@@ -64,7 +68,7 @@ extern NodeId create_node(Matrix *matrix, NodeId after, NodeId column);
 extern void destroy_matrix(Matrix *matrix);
 extern void print_matrix(Matrix *matrix);
 extern void print_row(Matrix *matrix, NodeId row);
-extern void print_solution(Matrix *matrix, NodeId *solution, int solution_size);
+extern void print_solution(Matrix *matrix);
 extern int search_matrix(Matrix *matrix, Callback solution_callback, void *baton);
 
 

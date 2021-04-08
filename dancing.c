@@ -116,6 +116,9 @@ Matrix *create_matrix() {
     NODE(root).right = root;
     HEADER(root).name = "ROOT";
     HEADER(root).primary = 1;
+    matrix->max_solution_size = 0;
+    matrix->solution_size = 0;
+    matrix->solution = NULL;
     return matrix;
 }
 
@@ -266,24 +269,24 @@ void print_row(Matrix *matrix, NodeId row) {
 }
 
 
-void print_solution(Matrix *matrix, NodeId *solution, int solution_size) {
+void print_solution(Matrix *matrix) {
     int i;
     printf("Solution:   ");
-    for (i = 0; i < solution_size; i++) {
-        print_row(matrix, solution[i]);
+    for (i = 0; i < matrix->solution_size; i++) {
+        print_row(matrix, matrix->solution[i]);
         printf(";   ");
     }
     printf("\n");
 }
 
 
-static int search_matrix_internal(Matrix *matrix, Callback solution_callback, NodeId *solution, int depth, void *baton) {
+static int search_matrix_internal(Matrix *matrix, Callback solution_callback, int depth, void *baton) {
     int result = 0;
 
     matrix->search_calls++;
     NodeId column = choose_column(matrix);
     if (column == 0) {
-        int result = solution_callback(matrix, solution, depth, baton);
+        int result = solution_callback(matrix, baton);
         matrix->num_solutions++;
         return result;
     }
@@ -291,15 +294,18 @@ static int search_matrix_internal(Matrix *matrix, Callback solution_callback, No
 
     cover_column(matrix, column);
 
+    NodeId *solution_spot = &matrix->solution[matrix->solution_size];
+    matrix->solution_size++;
+
     NodeId row;
     foreachlink(column, down, row) {
-        solution[depth] = row;
+        *solution_spot = row;
         NodeId col;
         foreachlink(row, right, col) {
             cover_column(matrix, NODE(col).column);
         }
 
-        result = search_matrix_internal(matrix, solution_callback, solution, depth + 1, baton);
+        result = search_matrix_internal(matrix, solution_callback, depth + 1, baton);
 
         foreachlink(row, left, col) {
             uncover_column(matrix, NODE(col).column);
@@ -308,6 +314,8 @@ static int search_matrix_internal(Matrix *matrix, Callback solution_callback, No
         if (result)
             break;
     }
+
+    matrix->solution_size--; 
 
     uncover_column(matrix, column);
 
@@ -319,12 +327,12 @@ int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
     matrix->search_calls = 0;
     matrix->num_solutions = 0;
 
-    NodeId *solution = malloc(sizeof(NodeId) * matrix->num_headers);
+    matrix->solution = array_alloc(matrix->solution, matrix->max_solution_size, matrix->num_rows);
 
     struct timespec start_time;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
 
-    int result = search_matrix_internal(matrix, solution_callback, solution, 0, baton);
+    int result = search_matrix_internal(matrix, solution_callback, 0, baton);
 
     struct timespec stop_time;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop_time);
@@ -336,7 +344,6 @@ int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
     printf("Search calls: %ld\n", matrix->search_calls);
     printf("Solutions found: %ld\n", matrix->num_solutions);
     printf("Search time: %0.3f seconds\n", search_time);
-    free(solution);
 
     return result;
 }
