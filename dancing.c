@@ -10,8 +10,11 @@
 
 static void *array_allocate(void **array, int *max, int *num, size_t size) {
     if (*num >= *max) {
-	    (*max) *= 2;
-	    *array = realloc(*array, *max * size);
+	    int new_max = 16;
+	    while (new_max <= *num)
+		new_max *= 2;
+	    *array = realloc(*array, new_max * size);
+	    *max = new_max;
     }
     void *ptr = *array + *num * size;
     (*num)++;
