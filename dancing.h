@@ -52,7 +52,6 @@ typedef struct Matrix {
     int num_rows;
 
     int solution_size;
-    int max_solution_size;
     NodeId *solution;
 
     Callback solution_callback;

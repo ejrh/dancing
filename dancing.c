@@ -119,7 +119,6 @@ Matrix *create_matrix() {
     NODE(root).right = root;
     HEADER(root).name = "ROOT";
     HEADER(root).primary = 1;
-    matrix->max_solution_size = 0;
     matrix->solution_size = 0;
     matrix->solution = NULL;
     return matrix;
@@ -318,7 +317,7 @@ static int search_matrix_internal(Matrix *matrix, int depth) {
             break;
     }
 
-    matrix->solution_size--; 
+    matrix->solution_size--;
 
     uncover_column(matrix, column);
 
@@ -330,7 +329,7 @@ int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
     matrix->search_calls = 0;
     matrix->num_solutions = 0;
 
-    matrix->solution = array_alloc(matrix->solution, matrix->max_solution_size, matrix->num_rows);
+    matrix->solution = calloc(matrix->num_rows, sizeof(NodeId));
 
     matrix->solution_callback = solution_callback;
     matrix->solution_baton = baton;
@@ -350,6 +349,8 @@ int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
     printf("Search calls: %ld\n", matrix->search_calls);
     printf("Solutions found: %ld\n", matrix->num_solutions);
     printf("Search time: %0.3f seconds\n", search_time);
+
+    free(matrix->solution);
 
     return result;
 }
