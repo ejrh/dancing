@@ -8,22 +8,6 @@
 #include "dancing.h"
 
 
-static void *array_allocate(void **array, int *max, int *num, size_t size) {
-    if (*num >= *max) {
-	    int new_max = 16;
-	    while (new_max <= *num)
-		new_max *= 2;
-	    *array = realloc(*array, new_max * size);
-	    *max = new_max;
-    }
-    void *ptr = *array + *num * size;
-    (*num)++;
-    return ptr;
-}
-
-#define array_alloc(array,max,num) array_allocate((void **) &array, &max, &num, sizeof(array[0]))
-
-
 static void insert_horizontally(Matrix *matrix, NodeId node, NodeId after) {
     NODE(node).left = after;
     NODE(node).right = NODE(after).right;
@@ -66,25 +50,25 @@ static void restore_vertically(Matrix *matrix, NodeId node) {
 
 static NodeId allocate_node(Matrix *matrix) {
     #if INDEX_NODES
-        NodeId id = matrix->num_nodes;
-        array_alloc(matrix->nodes, matrix->max_nodes, matrix->num_nodes);
+        NodeId id = matrix->nodes.num;
+        array_alloc(matrix->nodes);
         return id;
     #else
-        return array_alloc(matrix->nodes, matrix->max_nodes, matrix->num_nodes);
+        return array_alloc(matrix->nodes);
     #endif
 }
 
 
 static NodeId allocate_header(Matrix *matrix) {
     #if INDEX_NODES
-        if (matrix->num_nodes != matrix->num_headers) {
+        if (matrix->nodes.num != matrix->headers.num) {
             fprintf(stderr, "Warning, non-header nodes already inserted!");
-            matrix->num_headers = matrix->num_nodes;
+            matrix->headers.num = matrix->nodes.num;
         }
         NodeId id = allocate_node(matrix);
-        array_alloc(matrix->headers, matrix->max_headers, matrix->num_headers);
+        array_alloc(matrix->headers);
     #else
-        NodeId id = array_alloc(matrix->headers, matrix->max_headers, matrix->num_headers);
+        NodeId id = array_alloc(matrix->headers);
     #endif
 
     if (id != ROOT) {
@@ -97,7 +81,7 @@ static NodeId allocate_header(Matrix *matrix) {
 
     NODE(id).up = id;
     NODE(id).down = id;
-    HEADER(id).index = matrix->num_headers - 1;
+    HEADER(id).index = matrix->headers.num - 1;
     HEADER(id).size = 0;
     return id;
 }
@@ -105,12 +89,11 @@ static NodeId allocate_header(Matrix *matrix) {
 
 Matrix *create_matrix() {
     Matrix *matrix = malloc(sizeof(Matrix));
-    matrix->max_nodes = 10000;
-    matrix->num_nodes = 0;
-    matrix->nodes = malloc(matrix->max_nodes * sizeof(Node));
-    matrix->max_headers = 1000;
-    matrix->num_headers = 0;
-    matrix->headers = malloc(matrix->max_headers * sizeof(Header));
+    memset(matrix, 0, sizeof(Matrix));
+    matrix->nodes.max = 10000;
+    matrix->nodes.data = calloc(matrix->nodes.max, sizeof(Node));
+    matrix->headers.max = 1000;
+    matrix->headers.data = calloc(matrix->headers.max, sizeof(Header));
     NodeId root = allocate_header(matrix);
     matrix->num_rows = 0;
     NODE(root).up = root;
@@ -143,6 +126,7 @@ NodeId create_column(Matrix *matrix, int primary, char *fmt, ...) {
         fprintf(stderr, "Warning, primary column '%s' appears after non-primary '%s'!\n", HEADER(column).name, HEADER(prev_column).name);
     }
 
+    matrix->num_columns++;
     return column;
 }
 
@@ -162,6 +146,7 @@ NodeId create_node(Matrix *matrix, NodeId after, NodeId column) {
         insert_horizontally(matrix, node, after);
     }
 
+    matrix->num_nodes++;
     return node;
 }
 
@@ -171,8 +156,8 @@ void destroy_matrix(Matrix *matrix) {
     foreachlink(ROOT, right, n) {
         free(HEADER(n).name);
     }
-    free(matrix->nodes);
-    free(matrix->headers);
+    free(matrix->nodes.data);
+    free(matrix->headers.data);
     free(matrix);
 }
 
@@ -345,7 +330,7 @@ int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
     double search_time = stop_time.tv_sec + stop_time.tv_nsec/1E+9
                        - start_time.tv_sec - start_time.tv_nsec/1E+9;
 
-    printf("Matrix size: %d columns, %d rows, %d cells\n", matrix->num_headers - 1, matrix->num_rows, matrix->num_nodes);
+    printf("Matrix size: %d columns, %d rows, %d nodes\n", matrix->num_columns, matrix->num_rows, matrix->num_nodes);
     printf("Search calls: %ld\n", matrix->search_calls);
     printf("Solutions found: %ld\n", matrix->num_solutions);
     printf("Search time: %0.3f seconds\n", search_time);
