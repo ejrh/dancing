@@ -16,7 +16,7 @@ typedef struct {
     int max; \
 } 
 
-static inline void array_ensure_space(ExtArray *array, int wanted, size_t size) {
+static inline void extarray_ensure(ExtArray *array, int wanted, size_t size) {
     if (wanted >= array->max) {
 	    int new_max = 16;
 	    while (new_max <= wanted)
@@ -26,16 +26,18 @@ static inline void array_ensure_space(ExtArray *array, int wanted, size_t size) 
     }
 }
 
-static inline void *array_allocate(ExtArray *array, size_t size) {
-    array_ensure_space(array, array->num + 1, size);
+static inline void *extarray_alloc(ExtArray *array, size_t size) {
+    extarray_ensure(array, array->num + 1, size);
     void *ptr = array->data + array->num * size;
     array->num++;
     return ptr;
 }
 
-#define array_ensure(array, wanted) array_ensure_space((ExtArray *) &array, wanted, sizeof(array.data[0]))
+#define EXTARRAY_ENSURE(array, wanted) extarray_ensure((ExtArray *) &array, wanted, sizeof(array.data[0]))
 
-#define array_alloc(array) array_allocate((ExtArray *) &array, sizeof(array.data[0]))
+#define EXTARRAY_ALLOC(array) extarray_alloc((ExtArray *) &array, sizeof(array.data[0]))
+
+#define EXTARRAY_FREE(array) free(array.data)
 
 
 #endif
