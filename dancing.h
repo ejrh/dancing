@@ -52,8 +52,7 @@ typedef struct Matrix {
     int num_rows;
     int num_nodes;
 
-    int solution_size;
-    NodeId *solution;
+    EXTARRAY(NodeId) solution;
 
     Callback solution_callback;
     void *solution_baton;

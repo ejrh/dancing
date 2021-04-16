@@ -90,10 +90,9 @@ static NodeId allocate_header(Matrix *matrix) {
 Matrix *create_matrix() {
     Matrix *matrix = malloc(sizeof(Matrix));
     memset(matrix, 0, sizeof(Matrix));
-    matrix->nodes.max = 10000;
-    matrix->nodes.data = calloc(matrix->nodes.max, sizeof(Node));
-    matrix->headers.max = 1000;
-    matrix->headers.data = calloc(matrix->headers.max, sizeof(Header));
+    array_ensure(matrix->nodes, 10000);
+    array_ensure(matrix->headers, 1000);
+
     NodeId root = allocate_header(matrix);
     matrix->num_rows = 0;
     NODE(root).up = root;
@@ -102,8 +101,9 @@ Matrix *create_matrix() {
     NODE(root).right = root;
     HEADER(root).name = "ROOT";
     HEADER(root).primary = 1;
-    matrix->solution_size = 0;
-    matrix->solution = NULL;
+
+    array_ensure(matrix->solution, 100);
+
     return matrix;
 }
 
@@ -158,6 +158,7 @@ void destroy_matrix(Matrix *matrix) {
     }
     free(matrix->nodes.data);
     free(matrix->headers.data);
+    free(matrix->solution.data);
     free(matrix);
 }
 
@@ -259,8 +260,8 @@ void print_row(Matrix *matrix, NodeId row) {
 void print_solution(Matrix *matrix) {
     int i;
     printf("Solution:   ");
-    for (i = 0; i < matrix->solution_size; i++) {
-        print_row(matrix, matrix->solution[i]);
+    for (i = 0; i < matrix->solution.num; i++) {
+        print_row(matrix, matrix->solution.data[i]);
         printf(";   ");
     }
     printf("\n");
@@ -281,8 +282,8 @@ static int search_matrix_internal(Matrix *matrix, int depth) {
 
     cover_column(matrix, column);
 
-    NodeId *solution_spot = &matrix->solution[matrix->solution_size];
-    matrix->solution_size++;
+    NodeId *solution_spot = &matrix->solution.data[matrix->solution.num];
+    matrix->solution.num++;
 
     NodeId row;
     foreachlink(column, down, row) {
@@ -302,7 +303,7 @@ static int search_matrix_internal(Matrix *matrix, int depth) {
             break;
     }
 
-    matrix->solution_size--;
+    matrix->solution.num--;
 
     uncover_column(matrix, column);
 
@@ -314,7 +315,7 @@ int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
     matrix->search_calls = 0;
     matrix->num_solutions = 0;
 
-    matrix->solution = calloc(matrix->num_rows, sizeof(NodeId));
+    array_ensure(matrix->solution, matrix->num_rows);
 
     matrix->solution_callback = solution_callback;
     matrix->solution_baton = baton;
@@ -334,8 +335,6 @@ int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
     printf("Search calls: %ld\n", matrix->search_calls);
     printf("Solutions found: %ld\n", matrix->num_solutions);
     printf("Search time: %0.3f seconds\n", search_time);
-
-    free(matrix->solution);
 
     return result;
 }
