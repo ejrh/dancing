@@ -51,10 +51,10 @@ static void restore_vertically(Matrix *matrix, NodeId node) {
 static NodeId allocate_node(Matrix *matrix) {
     #if INDEX_NODES
         NodeId id = matrix->nodes.num;
-        array_alloc(matrix->nodes);
+        EXTARRAY_ALLOC(matrix->nodes);
         return id;
     #else
-        return array_alloc(matrix->nodes);
+        return EXTARRAY_ALLOC(matrix->nodes);
     #endif
 }
 
@@ -66,9 +66,9 @@ static NodeId allocate_header(Matrix *matrix) {
             matrix->headers.num = matrix->nodes.num;
         }
         NodeId id = allocate_node(matrix);
-        array_alloc(matrix->headers);
+        EXTARRAY_ALLOC(matrix->headers);
     #else
-        NodeId id = array_alloc(matrix->headers);
+        NodeId id = EXTARRAY_ALLOC(matrix->headers);
     #endif
 
     if (id != ROOT) {
@@ -90,8 +90,8 @@ static NodeId allocate_header(Matrix *matrix) {
 Matrix *create_matrix() {
     Matrix *matrix = malloc(sizeof(Matrix));
     memset(matrix, 0, sizeof(Matrix));
-    array_ensure(matrix->nodes, 10000);
-    array_ensure(matrix->headers, 1000);
+    EXTARRAY_ENSURE(matrix->nodes, 10000);
+    EXTARRAY_ENSURE(matrix->headers, 1000);
 
     NodeId root = allocate_header(matrix);
     matrix->num_rows = 0;
@@ -102,7 +102,7 @@ Matrix *create_matrix() {
     HEADER(root).name = "ROOT";
     HEADER(root).primary = 1;
 
-    array_ensure(matrix->solution, 100);
+    EXTARRAY_ENSURE(matrix->solution, 100);
 
     return matrix;
 }
@@ -156,9 +156,9 @@ void destroy_matrix(Matrix *matrix) {
     foreachlink(ROOT, right, n) {
         free(HEADER(n).name);
     }
-    free(matrix->nodes.data);
-    free(matrix->headers.data);
-    free(matrix->solution.data);
+    EXTARRAY_FREE(matrix->nodes);
+    EXTARRAY_FREE(matrix->headers);
+    EXTARRAY_FREE(matrix->solution);
     free(matrix);
 }
 
@@ -357,7 +357,7 @@ NodeId find_row(Matrix *matrix, NodeId *columns, int num_columns) {
 
 
 void choose_row(Matrix *matrix, NodeId row) {
-    NodeId *solution_spot = array_alloc(matrix->solution);
+    NodeId *solution_spot = EXTARRAY_ALLOC(matrix->solution);
     *solution_spot = row;
 
     cover_column(matrix, NODE(row).column);
@@ -375,7 +375,7 @@ int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
     matrix->search_calls = 0;
     matrix->num_solutions = 0;
 
-    array_ensure(matrix->solution, matrix->num_rows);
+    EXTARRAY_ENSURE(matrix->solution, matrix->num_rows);
 
     matrix->solution_callback = solution_callback;
     matrix->solution_baton = baton;
