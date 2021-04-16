@@ -164,15 +164,15 @@ static int print_pentominoes(Matrix *matrix, void *problem) {
     board[4][4] = ' ';
 
     int i;
-    for (i = 0; i < matrix->solution_size; i++) {
+    for (i = 0; i < matrix->solution.num; i++) {
         char *name = NULL;
         int r[PENTOMINO_LENGTH];
         int c[PENTOMINO_LENGTH];
         int num_cells = 0;
 
-        decode_column(HEADER(NODE(matrix->solution[i]).column).name, &name, r, c, &num_cells);
+        decode_column(HEADER(NODE(matrix->solution.data[i]).column).name, &name, r, c, &num_cells);
         NodeId n;
-        foreachlink(matrix->solution[i], right, n) {
+        foreachlink(matrix->solution.data[i], right, n) {
             decode_column(HEADER(NODE(n).column).name, &name, r, c, &num_cells);
         }
 

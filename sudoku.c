@@ -79,13 +79,13 @@ static int print_sudoku(Matrix *matrix, SudokuProblem *problem) {
     char *board = calloc(problem->size * problem->size, sizeof(int));
 
     int i;
-    for (i = 0; i < matrix->solution_size; i++) {
+    for (i = 0; i < matrix->solution.num; i++) {
         NodeId n;
         int row = -1, col = -1;
         char symbol = '.';
 
-        decode_column(HEADER(NODE(matrix->solution[i]).column).name, &row, &col, &symbol);
-        foreachlink(matrix->solution[i], right, n) {
+        decode_column(HEADER(NODE(matrix->solution.data[i]).column).name, &row, &col, &symbol);
+        foreachlink(matrix->solution.data[i], right, n) {
             decode_column(HEADER(NODE(n).column).name, &row, &col, &symbol);
         }
 
