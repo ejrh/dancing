@@ -6,8 +6,31 @@
 
 
 typedef struct {
+    char *start_filename;
+} SudokuOptions;
+
+
+typedef struct {
     int size;
 } SudokuProblem;
+
+
+static void parse_command_line(int argc, char *argv[], SudokuOptions *options) {
+    int i;
+    for (i = 1; i < argc; i++) {
+        if (*argv[i] == 'f')
+            options->start_filename = argv[++i];
+    }
+}
+
+
+static void prespecify_sudoku_cell(Matrix *matrix, int row_num, int column_num, char symbol) {
+    NodeId cols[2];
+    cols[0] = find_column(matrix, "R%d_%c", row_num, symbol);
+    cols[1] = find_column(matrix, "C%d_%c", column_num, symbol);
+    NodeId row = find_row(matrix, cols, 2);
+    choose_row(matrix, row);
+}
 
 
 static Matrix *create_sudoku_problem(int size) {
@@ -59,7 +82,25 @@ static Matrix *create_sudoku_problem(int size) {
         }
     }
 
+    prespecify_sudoku_cell(matrix, 0, 0, 'c');
+    prespecify_sudoku_cell(matrix, 0, 1, 'd');
+
     return matrix;
+}
+
+
+static void read_start_file(char *filename, SudokuProblem *problem, Matrix *matrix) {
+    char *board = calloc(problem->size * problem->size, sizeof(int));
+
+    int i;
+    for (i = 0; i < problem->size; i++) {
+        int j;
+        for (int j = 0; i < problem->size; i++) {
+            int ch = fgetc(stdin);
+        }
+    }
+
+    free(board);
 }
 
 
@@ -114,9 +155,16 @@ static int print_sudoku(Matrix *matrix, SudokuProblem *problem) {
 
 
 int main(int argc, char *argv[]) {
+    SudokuOptions options = { NULL };
+    parse_command_line(argc, argv, &options);
+
     SudokuProblem problem;
     problem.size = 4;
     Matrix *matrix = create_sudoku_problem(problem.size);
+
+    if (options.start_filename != NULL) {
+        read_start_file(options.start_filename, &problem, matrix);
+    }
 
     print_matrix(matrix);
 
