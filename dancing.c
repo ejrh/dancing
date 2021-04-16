@@ -311,6 +311,66 @@ static int search_matrix_internal(Matrix *matrix, int depth) {
 }
 
 
+NodeId find_column(Matrix *matrix, char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    char buffer[2048];
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+
+    va_end(args);
+
+    NodeId n;
+    foreachlink(ROOT, right, n) {
+        if (strcmp(HEADER(n).name, buffer) == 0)
+            return n;
+    }
+
+    return 0;
+
+}
+
+
+NodeId find_row(Matrix *matrix, NodeId *columns, int num_columns) {
+    int num_found;
+
+    NodeId n;
+    foreachlink(columns[0], down, n) {
+        num_found = 1;
+
+        NodeId n2;
+        foreachlink(n, right, n2) {
+            int j;
+            for (j = 1; j < num_columns; j++) {
+                if (columns[j] == NODE(n2).column) {
+                    num_found++;
+                }
+            }
+        }
+
+        if (num_found >= num_columns)
+            return n;
+    }
+
+    return 0;
+}
+
+
+void choose_row(Matrix *matrix, NodeId row) {
+    NodeId *solution_spot = array_alloc(matrix->solution);
+    *solution_spot = row;
+
+    cover_column(matrix, NODE(row).column);
+    NodeId col;
+    foreachlink(row, right, col) {
+        cover_column(matrix, NODE(col).column);
+    }
+    printf("Chose row: ");
+    print_row(matrix, row);
+    printf("\n");
+}
+
+
 int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
     matrix->search_calls = 0;
     matrix->num_solutions = 0;

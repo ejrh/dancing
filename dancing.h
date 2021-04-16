@@ -73,6 +73,9 @@ extern void destroy_matrix(Matrix *matrix);
 extern void print_matrix(Matrix *matrix);
 extern void print_row(Matrix *matrix, NodeId row);
 extern void print_solution(Matrix *matrix);
+extern NodeId find_column(Matrix *matrix, char *fmt, ...);
+extern NodeId find_row(Matrix *matrix, NodeId *columns, int num_columns);
+extern void choose_row(Matrix *matrix, NodeId row);
 extern int search_matrix(Matrix *matrix, Callback solution_callback, void *baton);
 
 
