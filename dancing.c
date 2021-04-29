@@ -54,7 +54,7 @@ static NodeId allocate_node(Matrix *matrix) {
         EXTARRAY_ALLOC(matrix->nodes);
         return id;
     #else
-        return EXTARRAY_ALLOC(matrix->nodes);
+        return SEGARRAY_ALLOC(matrix->nodes);
     #endif
 }
 
@@ -68,20 +68,24 @@ static NodeId allocate_header(Matrix *matrix) {
         NodeId id = allocate_node(matrix);
         EXTARRAY_ALLOC(matrix->headers);
     #else
-        NodeId id = EXTARRAY_ALLOC(matrix->headers);
+        NodeId id = SEGARRAY_ALLOC(matrix->headers);
+        if (matrix->headers.segments.num == 0 && matrix->headers.current.num == 1) {
+            matrix->root = id;
+        }
     #endif
 
     if (id != ROOT) {
         NodeId last = NODE(ROOT).left;
         insert_horizontally(matrix, id, last);
+        HEADER(id).index = HEADER(last).index + 1;
     } else {
         NODE(id).left = id;
         NODE(id).right = id;
+        HEADER(id).index = 0;
     }
 
     NODE(id).up = id;
     NODE(id).down = id;
-    HEADER(id).index = matrix->headers.num - 1;
     HEADER(id).size = 0;
     return id;
 }
@@ -90,8 +94,6 @@ static NodeId allocate_header(Matrix *matrix) {
 Matrix *create_matrix() {
     Matrix *matrix = malloc(sizeof(Matrix));
     memset(matrix, 0, sizeof(Matrix));
-    EXTARRAY_ENSURE(matrix->nodes, 10000);
-    EXTARRAY_ENSURE(matrix->headers, 1000);
 
     NodeId root = allocate_header(matrix);
     matrix->num_rows = 0;
@@ -156,8 +158,13 @@ void destroy_matrix(Matrix *matrix) {
     foreachlink(ROOT, right, n) {
         free(HEADER(n).name);
     }
+#if INDEX_NODES
     EXTARRAY_FREE(matrix->nodes);
     EXTARRAY_FREE(matrix->headers);
+#else
+    SEGARRAY_FREE(matrix->nodes);
+    SEGARRAY_FREE(matrix->headers);
+#endif
     EXTARRAY_FREE(matrix->solution);
     free(matrix);
 }

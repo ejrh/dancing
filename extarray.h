@@ -17,7 +17,7 @@ typedef struct {
 } 
 
 static inline void extarray_ensure(ExtArray *array, int wanted, size_t size) {
-    if (wanted >= array->max) {
+    if (wanted > array->max) {
 	    int new_max = 16;
 	    while (new_max <= wanted)
 		    new_max *= 2;
