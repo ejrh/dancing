@@ -2,7 +2,7 @@ CFLAGS = -Wall $(OPT)
 
 all: queens pentominoes sudoku
 
-SHARED_FILES = dancing.c dancing.h extarray.h
+SHARED_FILES = dancing.c dancing.h extarray.h segarray.h
 SHARED_C = dancing.c
 SHARED_OBJ = dancing.o
 

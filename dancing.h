@@ -4,6 +4,7 @@
 #define DANCING_H
 
 #include "extarray.h"
+#include "segarray.h"
 
 
 #define INDEX_NODES 1
@@ -21,7 +22,7 @@
 
     #define NODE(id) (*id)
     #define HEADER(id) (*(Header *) id)
-    #define ROOT ((Node *) &matrix->headers.data[0])
+    #define ROOT matrix->root
 #endif
 
 typedef struct Node {
@@ -45,8 +46,14 @@ struct Matrix;
 typedef int (*Callback)(struct Matrix *matrix, void *baton);
 
 typedef struct Matrix {
-    EXTARRAY(Node) nodes;
-    EXTARRAY(Header) headers;
+    #if INDEX_NODES
+        EXTARRAY(Node) nodes;
+        EXTARRAY(Header) headers;
+    #else
+        SEGARRAY(Node) nodes;
+        SEGARRAY(Header) headers;
+        NodeId root;
+    #endif
 
     int num_columns;
     int num_rows;
