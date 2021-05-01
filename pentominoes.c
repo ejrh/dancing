@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -204,7 +205,11 @@ int main(int argc, char *argv[]) {
 
     //print_matrix(matrix);
 
-    search_matrix(matrix, print_pentominoes, NULL);
+    //search_matrix(matrix, print_pentominoes, NULL, 0);
+
+    matrix->solution_callback = (Callback) print_pentominoes;
+    matrix->solution_baton = NULL;
+    search_with_threads(matrix, 3);
 
     destroy_matrix(matrix);
     return 0;

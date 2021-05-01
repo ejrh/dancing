@@ -170,6 +170,39 @@ void destroy_matrix(Matrix *matrix) {
 }
 
 
+#define FIXUP(ptr, old_array, new_array) (ptr = (ptr) - (void *) (old_array) + (void *) (new_array));
+
+
+Matrix *clone_matrix(Matrix *matrix) {
+    Matrix *new_matrix = create_matrix();
+    EXTARRAY_COPY(new_matrix->nodes, matrix->nodes);
+    EXTARRAY_COPY(new_matrix->headers, matrix->headers);
+    EXTARRAY_COPY(new_matrix->solution, matrix->solution);
+    
+    /* Make sure column names aren't shared with original. */
+    NodeId n;
+    foreachlink(ROOT, right, n) {
+        HEADER(n).name = strdup(HEADER(n).name);
+    }
+    
+#if INDEX_NODES
+#else
+    /* Fix up node pointers. */
+    int i;
+    for (i = 0; i < new_matrix->nodes.num; i++) {
+	Node *node = &new_matrix->nodes.data[i];
+	FIXUP(node->left, matrix->nodes.data, new_matrix->nodes.data);
+	FIXUP(node->right, matrix->nodes.data, new_matrix->nodes.data);
+	FIXUP(node->up, matrix->nodes.data, new_matrix->nodes.data);
+	FIXUP(node->down, matrix->nodes.data, new_matrix->nodes.data);
+	FIXUP(node->column, matrix->nodes.data, new_matrix->nodes.data);
+    }
+#endif
+    
+    return new_matrix;
+}
+
+
 void print_matrix(Matrix *matrix) {
     NodeId n;
     printf("ROOT");
@@ -275,10 +308,15 @@ void print_solution(Matrix *matrix) {
 }
 
 
-static int search_matrix_internal(Matrix *matrix, int depth) {
+int search_matrix_internal(Matrix *matrix, int depth, int max_depth) {
     int result = 0;
 
     matrix->search_calls++;
+    
+    if (depth >= max_depth) {
+	return matrix->depth_callback(matrix, matrix->depth_baton);
+    }	
+    
     NodeId column = choose_column(matrix);
     if (column == 0) {
         int result = matrix->solution_callback(matrix, matrix->solution_baton);
@@ -300,7 +338,7 @@ static int search_matrix_internal(Matrix *matrix, int depth) {
             cover_column(matrix, NODE(col).column);
         }
 
-        result = search_matrix_internal(matrix, depth + 1);
+        result = search_matrix_internal(matrix, depth + 1, max_depth);
 
         foreachlink(row, left, col) {
             uncover_column(matrix, NODE(col).column);
@@ -378,7 +416,7 @@ void choose_row(Matrix *matrix, NodeId row) {
 }
 
 
-int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
+int search_matrix(Matrix *matrix, Callback solution_callback, void *baton, int max_depth) {
     matrix->search_calls = 0;
     matrix->num_solutions = 0;
 
@@ -389,8 +427,11 @@ int search_matrix(Matrix *matrix, Callback solution_callback, void *baton) {
 
     struct timespec start_time;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
+    
+    if (max_depth <= 0)
+	max_depth = INT_MAX;
 
-    int result = search_matrix_internal(matrix, 0);
+    int result = search_matrix_internal(matrix, 0, max_depth);
 
     struct timespec stop_time;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop_time);

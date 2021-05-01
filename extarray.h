@@ -3,6 +3,9 @@
 #ifndef EXTARRAY_H
 #define EXTARRAY_H
 
+#include <string.h>
+
+
 typedef struct {
     void *data;
     int num;
@@ -33,11 +36,19 @@ static inline void *extarray_alloc(ExtArray *array, size_t size) {
     return ptr;
 }
 
+static inline void extarray_copy(ExtArray *dest_array, ExtArray *array, size_t size) {
+    extarray_ensure(dest_array, array->num, size);
+    memcpy(dest_array->data, array->data, array->num * size);
+    dest_array->num = array->num;
+}
+
 #define EXTARRAY_ENSURE(array, wanted) extarray_ensure((ExtArray *) &array, wanted, sizeof(array.data[0]))
 
 #define EXTARRAY_ALLOC(array) extarray_alloc((ExtArray *) &array, sizeof(array.data[0]))
 
 #define EXTARRAY_FREE(array) free(array.data)
+
+#define EXTARRAY_COPY(dest_array, array) extarray_copy((ExtArray *) &dest_array, (ExtArray *) &array, sizeof(array.data[0]))
 
 
 #endif

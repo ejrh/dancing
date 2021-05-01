@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -167,8 +168,8 @@ int main(int argc, char *argv[]) {
     }
 
     print_matrix(matrix);
-
-    search_matrix(matrix, (Callback) print_sudoku, &problem);
+    
+    search_matrix(matrix, (Callback) print_sudoku, &problem, 0);
 
     destroy_matrix(matrix);
     return 0;
