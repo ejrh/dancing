@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "dancing.h"
+#include "dancing_threads.h"
 
 
 typedef struct {
@@ -60,7 +61,7 @@ static void decode_column(char *column_name, int *rank, int *file) {
 
 
 static int print_queens(Matrix *matrix, QueensProblem *problem) {
-    int *board = calloc(problem->size * problem->size, sizeof(int));
+    /*int *board = calloc(problem->size * problem->size, sizeof(int));
     
     int i;
     for (i = 0; i < matrix->solution.num; i++) {
@@ -89,7 +90,7 @@ static int print_queens(Matrix *matrix, QueensProblem *problem) {
         printf("\n");
     }
     
-    free(board);
+    free(board);*/
 
     return 0;
 }
@@ -101,7 +102,11 @@ int main(int argc, char *argv[]) {
     Matrix *matrix = create_queens_problem(problem.size);
     //print_matrix(matrix);
 
-    search_matrix(matrix, (Callback) print_queens, &problem);
+    //search_matrix(matrix, (Callback) print_queens, &problem, 0);
+    
+    matrix->solution_callback = (Callback) print_queens;
+    matrix->solution_baton = &problem;        
+    search_with_threads(matrix, 2);
 
     destroy_matrix(matrix);
     return 0;

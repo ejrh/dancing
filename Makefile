@@ -1,10 +1,9 @@
-CFLAGS = -Wall $(OPT)
+CFLAGS = -Wall -Wno-unused $(OPT) -lpthread
 
 all: queens pentominoes sudoku
 
-SHARED_FILES = dancing.c dancing.h extarray.h segarray.h
-SHARED_C = dancing.c
-SHARED_OBJ = dancing.o
+SHARED_FILES = dancing.c dancing.h extarray.h segarray.h dancing_threads.c dancing_threads.h
+SHARED_C = dancing.c dancing_threads.c
 
 queens: $(SHARED_FILES) queens.c
 	$(CC) -o $@ $(SHARED_C) queens.c $(CFLAGS)

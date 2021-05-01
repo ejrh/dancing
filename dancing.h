@@ -64,6 +64,9 @@ typedef struct Matrix {
     Callback solution_callback;
     void *solution_baton;
 
+    Callback depth_callback;
+    void *depth_baton;
+
     /* Statistics. */
     long int num_solutions;
     long int search_calls;
@@ -77,13 +80,14 @@ extern Matrix *create_matrix();
 extern NodeId create_column(Matrix *matrix, int primary, char *fmt, ...);
 extern NodeId create_node(Matrix *matrix, NodeId after, NodeId column);
 extern void destroy_matrix(Matrix *matrix);
+extern Matrix *clone_matrix(Matrix *matrix);
 extern void print_matrix(Matrix *matrix);
 extern void print_row(Matrix *matrix, NodeId row);
 extern void print_solution(Matrix *matrix);
+extern int search_matrix_internal(Matrix *matrix, int depth, int max_depth);
 extern NodeId find_column(Matrix *matrix, char *fmt, ...);
 extern NodeId find_row(Matrix *matrix, NodeId *columns, int num_columns);
 extern void choose_row(Matrix *matrix, NodeId row);
-extern int search_matrix(Matrix *matrix, Callback solution_callback, void *baton);
-
+extern int search_matrix(Matrix *matrix, Callback solution_callback, void *baton, int max_depth);
 
 #endif
