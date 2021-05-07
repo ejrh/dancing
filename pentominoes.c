@@ -1,9 +1,8 @@
-#include <limits.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
+#include "basic.h"
 #include "dancing.h"
 
 
@@ -39,6 +38,67 @@ static Pentomino PENTOMINOES[NUM_PENTOMINOES] = {
     { "Y", {0,1,1,2,3}, {1,0,1,1,1}, 2, 4, 4, 2 },
     { "Z", {0,0,1,2,2}, {0,1,1,1,2}, 2, 2, 3, 3 }
 };
+
+
+typedef struct {
+    Problem problem;
+    int size;
+} PentominoesProblem;
+
+
+static void decode_column(char *column_name, char **name, int *r, int *c, int *num_cells) {
+    if (isalpha((int) column_name[0]))
+        *name = column_name;
+    else {
+        r[*num_cells] = column_name[0] - 48;
+        c[*num_cells] = column_name[1] - 48;
+        (*num_cells)++;
+    }
+}
+
+
+static int print_pentominoes(Matrix *matrix, PentominoesProblem *problem) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    memset(board, 0, sizeof(board));
+    board[3][3] = ' ';
+    board[3][4] = ' ';
+    board[4][3] = ' ';
+    board[4][4] = ' ';
+
+    int i;
+    for (i = 0; i < matrix->solution.num; i++) {
+        char *name = NULL;
+        int r[PENTOMINO_LENGTH];
+        int c[PENTOMINO_LENGTH];
+        int num_cells = 0;
+
+        decode_column(HEADER(NODE(matrix->solution.data[i]).column).name, &name, r, c, &num_cells);
+        NodeId n;
+        foreachlink(matrix->solution.data[i], right, n) {
+            decode_column(HEADER(NODE(n).column).name, &name, r, c, &num_cells);
+        }
+
+        if (name == NULL || num_cells != PENTOMINO_LENGTH) {
+            fprintf(stderr, "Warning, could not identify name, r and c\n");
+            print_row(matrix, n);
+        } else {
+            int j;
+            for (j = 0; j < num_cells; j++)
+                board[r[j]][c[j]] = name[0];
+        }
+    }
+
+    printf("Pentominoes:\n");
+    for (i = 0; i < BOARD_SIZE; i++) {
+        int j;
+        for (j = 0; j < BOARD_SIZE; j++) {
+            printf(" %c", board[i][j]);
+        }
+        printf("\n");
+    }
+
+    return 0;
+}
 
 
 static int arrange_pentomino(Pentomino *p, int i, int j, int flip, int rotation, int board_rows, int board_cols, NodeId square_columns[8][8], NodeId *positions) {
@@ -80,17 +140,21 @@ static int arrange_pentomino(Pentomino *p, int i, int j, int flip, int rotation,
 }
 
 
-static Matrix *create_pentominoes_problem() {
+static PentominoesProblem *create_pentominoes_problem() {
     int num_squares = BOARD_SIZE * BOARD_SIZE - 2*2;
     int num_cols = NUM_PENTOMINOES + num_squares;
     int num_rows = 0;
+
+    PentominoesProblem *problem = malloc(sizeof(PentominoesProblem));
+    memset(problem, 0, sizeof(PentominoesProblem));
+    Matrix *matrix = problem->problem.matrix = create_matrix();
+
     int i;
     for (i = 0; i < NUM_PENTOMINOES; i++) {
         Pentomino *p = &PENTOMINOES[i];
         num_rows += p->flips * p->rotations * (BOARD_SIZE + 1 - p->rows) * (BOARD_SIZE + 1 - p->cols);
     }
     int num_nodes = (PENTOMINO_LENGTH + 1) * num_rows;
-    Matrix *matrix = create_matrix(num_nodes, num_cols);
 
     NodeId square_columns[BOARD_SIZE][BOARD_SIZE];
     NodeId piece_columns[NUM_PENTOMINOES];
@@ -141,76 +205,19 @@ static Matrix *create_pentominoes_problem() {
             }
     }
 
-    return matrix;
+    matrix->solution_callback = (Callback) print_pentominoes;
+    matrix->solution_baton = problem;        
+
+    return problem;
 }
 
 
-static void decode_column(char *column_name, char **name, int *r, int *c, int *num_cells) {
-    if (isalpha((int) column_name[0]))
-        *name = column_name;
-    else {
-        r[*num_cells] = column_name[0] - 48;
-        c[*num_cells] = column_name[1] - 48;
-        (*num_cells)++;
-    }
-}
-
-
-static int print_pentominoes(Matrix *matrix, void *problem) {
-    int board[BOARD_SIZE][BOARD_SIZE];
-    memset(board, 0, sizeof(board));
-    board[3][3] = ' ';
-    board[3][4] = ' ';
-    board[4][3] = ' ';
-    board[4][4] = ' ';
-
-    int i;
-    for (i = 0; i < matrix->solution.num; i++) {
-        char *name = NULL;
-        int r[PENTOMINO_LENGTH];
-        int c[PENTOMINO_LENGTH];
-        int num_cells = 0;
-
-        decode_column(HEADER(NODE(matrix->solution.data[i]).column).name, &name, r, c, &num_cells);
-        NodeId n;
-        foreachlink(matrix->solution.data[i], right, n) {
-            decode_column(HEADER(NODE(n).column).name, &name, r, c, &num_cells);
-        }
-
-        if (name == NULL || num_cells != PENTOMINO_LENGTH) {
-            fprintf(stderr, "Warning, could not identify name, r and c\n");
-            print_row(matrix, n);
-        } else {
-            int j;
-            for (j = 0; j < num_cells; j++)
-                board[r[j]][c[j]] = name[0];
-        }
-    }
-
-    printf("Pentominoes:\n");
-    for (i = 0; i < BOARD_SIZE; i++) {
-        int j;
-        for (j = 0; j < BOARD_SIZE; j++) {
-            printf(" %c", board[i][j]);
-        }
-        printf("\n");
-    }
-
-    return 0;
+static void destroy_pentominoes_problem(PentominoesProblem *problem) {
+    destroy_matrix(problem->problem.matrix);
+    free(problem);
 }
 
 
 int main(int argc, char *argv[]) {
-    Matrix *matrix = create_pentominoes_problem();
-
-    //print_matrix(matrix);
-
-    //search_matrix(matrix, print_pentominoes, NULL, 0);
-
-    matrix->solution_callback = (Callback) print_pentominoes;
-    matrix->solution_baton = NULL;
-    search_with_threads(matrix, 3);
-
-    destroy_matrix(matrix);
-    return 0;
+    return basic_main(argc, argv, (CreateProblem *) create_pentominoes_problem, (DestroyProblem *) destroy_pentominoes_problem);
 }

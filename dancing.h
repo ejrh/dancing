@@ -70,6 +70,8 @@ typedef struct Matrix {
     /* Statistics. */
     long int num_solutions;
     long int search_calls;
+    long int num_messages;
+    long int num_subsearches;
 } Matrix;
 
 
@@ -88,6 +90,6 @@ extern int search_matrix_internal(Matrix *matrix, int depth, int max_depth);
 extern NodeId find_column(Matrix *matrix, char *fmt, ...);
 extern NodeId find_row(Matrix *matrix, NodeId *columns, int num_columns);
 extern void choose_row(Matrix *matrix, NodeId row);
-extern int search_matrix(Matrix *matrix, Callback solution_callback, void *baton, int max_depth);
+extern int search_matrix(Matrix *matrix, int max_depth);
 
 #endif

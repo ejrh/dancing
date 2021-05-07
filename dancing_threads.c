@@ -62,10 +62,6 @@ typedef struct ThreadControl {
     Queue queue;
     int finish_all;
     ThreadData *first_ready_thread;
-
-    /* Statistics.*/
-    long int num_messages;
-    long int num_subsearches;
 } ThreadControl;
 
 
@@ -217,7 +213,7 @@ static int thread_solution(Matrix *matrix, ThreadData *data) {
     message.type = MT_SOLUTION;
     message.worker_data = data;
     //TODO set solution
-    put_message(&data->control->queue, &message);
+    //put_message(&data->control->queue, &message);
     return data->control->finish_all;
 }
 
@@ -230,7 +226,7 @@ static void process_messages(Matrix *matrix, ThreadControl *control) {
     if (num_messages == 0)
         return;
 
-    control->num_messages += num_messages;
+    matrix->num_messages += num_messages;
     thread_printf("Processing %d messages\n", num_messages);
 
     int i;
@@ -303,7 +299,7 @@ static int start_thread_search(Matrix *matrix, ThreadControl *control) {
     pthread_mutex_unlock(&thread_data->mutex);
     thread_printf("Signaled worker %d\n", thread_data->worker_id);
 
-    control->num_subsearches++;
+    matrix->num_subsearches++;
     
     return 0;
 }
@@ -368,6 +364,9 @@ int search_with_threads(Matrix *matrix, int depth_cutoff) {
     if (!worker_id_key) {
 	    pthread_key_create(&worker_id_key, NULL);
     }
+
+    matrix->num_messages = 0;
+    matrix->num_subsearches = 0;
     
     ThreadControl control;
     memset(&control, 0, sizeof(control));
@@ -391,9 +390,9 @@ int search_with_threads(Matrix *matrix, int depth_cutoff) {
     
     matrix->depth_callback = (Callback) start_thread_search;
     matrix->depth_baton = &control;
-    
+
     thread_printf("Beginning search\n");
-    int result = search_matrix(matrix, matrix->solution_callback, &matrix->solution_baton, depth_cutoff);
+    int result = search_matrix(matrix, depth_cutoff);
     thread_printf("Finished search\n");
     
     /* Process messages, and when each worker is in ready state, shut it down. */
@@ -423,8 +422,5 @@ int search_with_threads(Matrix *matrix, int depth_cutoff) {
     pthread_cond_destroy(&control.queue.message_available);
     pthread_cond_destroy(&control.queue.space_available);
 
-    printf("Messages: %ld\n", control.num_messages);
-    printf("Subsearches: %ld\n", control.num_subsearches);
-    
     return result;
 }

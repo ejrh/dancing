@@ -1,17 +1,65 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "basic.h"
 #include "dancing.h"
-#include "dancing_threads.h"
 
 
 typedef struct {
+    Problem problem;
     int size;
 } QueensProblem;
 
 
-static Matrix *create_queens_problem(int size) {
-    Matrix *matrix = create_matrix();
+static void decode_column(char *column_name, int *rank, int *file) {
+    if (column_name[0] == 'R')
+        *rank = atoi(&column_name[1]);
+    else if (column_name[0] == 'F')
+        *file = atoi(&column_name[1]);
+}
+
+
+static int print_queens(Matrix *matrix, QueensProblem *problem) {
+    int *board = calloc(problem->size * problem->size, sizeof(int));
+    
+    int i;
+    for (i = 0; i < matrix->solution.num; i++) {
+        NodeId n;
+        int rank = -1, file = -1;
+
+        decode_column(HEADER(NODE(matrix->solution.data[i]).column).name, &rank, &file);
+        foreachlink(matrix->solution.data[i], right, n) {
+            decode_column(HEADER(NODE(n).column).name, &rank, &file);
+        }
+
+        if (rank == -1 || file == -1) {
+            fprintf(stderr, "Warning, could not identify rank and file\n");
+            print_row(matrix, n);
+        } else {
+            board[rank * problem->size + file] = 1;
+        }
+    }
+
+    printf("Queens:\n");
+    for (i = 0; i < problem->size; i++) {
+        int j;
+        for (j = 0; j < problem->size; j++) {
+            printf(" %d", board[i * problem->size + j]);
+        }
+        printf("\n");
+    }
+    
+    free(board);
+
+    return 0;
+}
+
+
+static QueensProblem *create_queens_problem(Options *options) {
+    QueensProblem *problem = malloc(sizeof(QueensProblem));
+    memset(problem, 0, sizeof(QueensProblem));
+    Matrix *matrix = problem->problem.matrix = create_matrix();
+    int size = problem->size = options->problem_size;
 
     NodeId r_cols[size];
     NodeId f_cols[size];
@@ -48,66 +96,19 @@ static Matrix *create_queens_problem(int size) {
         }
     }
 
-    return matrix;
+    matrix->solution_callback = (Callback) print_queens;
+    matrix->solution_baton = problem;        
+
+    return problem;
 }
 
 
-static void decode_column(char *column_name, int *rank, int *file) {
-    if (column_name[0] == 'R')
-        *rank = atoi(&column_name[1]);
-    else if (column_name[0] == 'F')
-        *file = atoi(&column_name[1]);
-}
-
-
-static int print_queens(Matrix *matrix, QueensProblem *problem) {
-    /*int *board = calloc(problem->size * problem->size, sizeof(int));
-    
-    int i;
-    for (i = 0; i < matrix->solution.num; i++) {
-        NodeId n;
-        int rank = -1, file = -1;
-
-        decode_column(HEADER(NODE(matrix->solution.data[i]).column).name, &rank, &file);
-        foreachlink(matrix->solution.data[i], right, n) {
-            decode_column(HEADER(NODE(n).column).name, &rank, &file);
-        }
-
-        if (rank == -1 || file == -1) {
-            fprintf(stderr, "Warning, could not identify rank and file\n");
-            print_row(matrix, n);
-        } else {
-            board[rank * problem->size + file] = 1;
-        }
-    }
-
-    printf("Queens:\n");
-    for (i = 0; i < problem->size; i++) {
-        int j;
-        for (j = 0; j < problem->size; j++) {
-            printf(" %d", board[i * problem->size + j]);
-        }
-        printf("\n");
-    }
-    
-    free(board);*/
-
-    return 0;
+static void destroy_queens_problem(QueensProblem *problem) {
+    destroy_matrix(problem->problem.matrix);
+    free(problem);
 }
 
 
 int main(int argc, char *argv[]) {
-    QueensProblem problem;
-    problem.size = 8;
-    Matrix *matrix = create_queens_problem(problem.size);
-    //print_matrix(matrix);
-
-    //search_matrix(matrix, (Callback) print_queens, &problem, 0);
-    
-    matrix->solution_callback = (Callback) print_queens;
-    matrix->solution_baton = &problem;        
-    search_with_threads(matrix, 2);
-
-    destroy_matrix(matrix);
-    return 0;
+    return basic_main(argc, argv, (CreateProblem *) create_queens_problem, (DestroyProblem *) destroy_queens_problem);
 }

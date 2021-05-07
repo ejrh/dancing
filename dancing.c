@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 
 #include "dancing.h"
 
@@ -416,33 +415,16 @@ void choose_row(Matrix *matrix, NodeId row) {
 }
 
 
-int search_matrix(Matrix *matrix, Callback solution_callback, void *baton, int max_depth) {
+int search_matrix(Matrix *matrix, int max_depth) {
     matrix->search_calls = 0;
     matrix->num_solutions = 0;
 
     EXTARRAY_ENSURE(matrix->solution, matrix->num_rows);
 
-    matrix->solution_callback = solution_callback;
-    matrix->solution_baton = baton;
-
-    struct timespec start_time;
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
-    
     if (max_depth <= 0)
-	max_depth = INT_MAX;
+	    max_depth = INT_MAX;
 
     int result = search_matrix_internal(matrix, 0, max_depth);
-
-    struct timespec stop_time;
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop_time);
-
-    double search_time = stop_time.tv_sec + stop_time.tv_nsec/1E+9
-                       - start_time.tv_sec - start_time.tv_nsec/1E+9;
-
-    printf("Matrix size: %d columns, %d rows, %d nodes\n", matrix->num_columns, matrix->num_rows, matrix->num_nodes);
-    printf("Search calls: %ld\n", matrix->search_calls);
-    printf("Solutions found: %ld\n", matrix->num_solutions);
-    printf("Search time: %0.3f seconds\n", search_time);
 
     return result;
 }
