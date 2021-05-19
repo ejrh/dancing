@@ -43,12 +43,12 @@ typedef struct {
 } Message;
 
 
-#define NUM_THREADS 4
-#define QUEUE_SIZE (NUM_THREADS * 100)
+#define QUEUE_SIZE_PER_THREAD 100
 
 
 typedef struct {
-    Message queue[QUEUE_SIZE];
+    int queue_size;
+    Message *queue;
     int queue_start;
     int num_queued;
     pthread_mutex_t mutex;
@@ -58,7 +58,8 @@ typedef struct {
 
 
 typedef struct ThreadControl {
-    ThreadData threads[NUM_THREADS];
+    int num_threads;
+    ThreadData *threads;
     Queue queue;
     int finish_all;
     ThreadData *first_ready_thread;
@@ -101,6 +102,24 @@ static void thread_printf(char *fmt, ...) { }
 #endif
 
 
+static void init_queue(Queue *queue, int queue_size) {
+    queue->queue_size = queue_size;
+    queue->queue = calloc(queue_size, sizeof(Message));
+
+    pthread_mutex_init(&queue->mutex, NULL);
+    pthread_cond_init(&queue->message_available, NULL);
+    pthread_cond_init(&queue->space_available, NULL);
+}
+
+
+static void teardown_queue(Queue *queue) {
+    free(queue->queue);
+
+    pthread_mutex_destroy(&queue->mutex);
+    pthread_cond_destroy(&queue->message_available);
+    pthread_cond_destroy(&queue->space_available);
+}
+
 
 static void set_timeout(struct timespec *abstime, int seconds) {
   clock_gettime(CLOCK_REALTIME, abstime);
@@ -114,12 +133,12 @@ static void set_timeout(struct timespec *abstime, int seconds) {
 static void put_message(Queue *queue, Message *message) {
 	pthread_mutex_lock(&queue->mutex);
 	
-    while (queue->num_queued >= QUEUE_SIZE) {
+    while (queue->num_queued >= queue->queue_size) {
 	    thread_printf("Waiting for space on queue!\n");
         pthread_cond_wait(&queue->space_available, &queue->mutex);
     }
 
-    queue->queue[(queue->queue_start + queue->num_queued) % QUEUE_SIZE] = *message;
+    queue->queue[(queue->queue_start + queue->num_queued) % queue->queue_size] = *message;
 	queue->num_queued++;
     thread_printf("Put one message, queue size is now %d\n", queue->num_queued);
 
@@ -147,11 +166,11 @@ static int get_message(Queue *queue, Message *message) {
     assert(queue->num_queued > 0);
 
     *message = queue->queue[queue->queue_start];
-    queue->queue_start = (queue->queue_start + 1) % QUEUE_SIZE;
+    queue->queue_start = (queue->queue_start + 1) % queue->queue_size;
     queue->num_queued--;
     thread_printf("Got one message, queue size is now %d\n", queue->num_queued);
 
-    if (queue->num_queued == QUEUE_SIZE - 1) {    
+    if (queue->num_queued == queue->queue_size - 1) {
         thread_printf("Signalling that space is now available\n");
         pthread_cond_signal(&queue->space_available);
     }
@@ -185,15 +204,15 @@ static int get_messages(Queue *queue, Message *message, int max, int timeout) {
 
     /* Copy as many continguous messages as we can into the buffer (we don't try to follow
        wraparound). */
-    int num_to_copy = MIN3(queue->num_queued, QUEUE_SIZE - queue->queue_start, max);
+    int num_to_copy = MIN3(queue->num_queued, queue->queue_size - queue->queue_start, max);
     assert(num_to_copy > 0);
     memcpy(message, &queue->queue[queue->queue_start], num_to_copy * sizeof(Message));
 
-    queue->queue_start = (queue->queue_start + num_to_copy) % QUEUE_SIZE;
+    queue->queue_start = (queue->queue_start + num_to_copy) % queue->queue_size;
     queue->num_queued -= num_to_copy;
     thread_printf("Got %d messages, queue size is now %d\n", num_to_copy, queue->num_queued);
 
-    if (queue->num_queued + num_to_copy == QUEUE_SIZE) {
+    if (queue->num_queued + num_to_copy == queue->queue_size) {
         thread_printf("Signalling that space is now available\n");
         pthread_cond_broadcast(&queue->space_available);
     }
@@ -360,7 +379,7 @@ static void *thread_worker(ThreadData *data) {
 }
 
 
-int search_with_threads(Matrix *matrix, int depth_cutoff) {
+int search_with_threads(Matrix *matrix, int depth_cutoff, int num_threads) {
     if (!worker_id_key) {
 	    pthread_key_create(&worker_id_key, NULL);
     }
@@ -371,14 +390,14 @@ int search_with_threads(Matrix *matrix, int depth_cutoff) {
     ThreadControl control;
     memset(&control, 0, sizeof(control));
 
-    /* Set up queue. */
-    pthread_mutex_init(&control.queue.mutex, NULL);
-    pthread_cond_init(&control.queue.message_available, NULL);
-    pthread_cond_init(&control.queue.space_available, NULL);
-    
+    control.num_threads = num_threads;
+
+    init_queue(&control.queue, num_threads * QUEUE_SIZE_PER_THREAD);
+
     /* Create some threads. */
+    control.threads = calloc(num_threads, sizeof(ThreadData));
     int i;
-    for (i = 0; i < NUM_THREADS; i++) {
+    for (i = 0; i < control.num_threads; i++) {
         ThreadData *data = &control.threads[i];
         data->worker_id = i+1;
         data->control = &control;
@@ -396,7 +415,7 @@ int search_with_threads(Matrix *matrix, int depth_cutoff) {
     thread_printf("Finished search\n");
     
     /* Process messages, and when each worker is in ready state, shut it down. */
-    for (i = 0; i < NUM_THREADS; i++) {
+    for (i = 0; i < control.num_threads; i++) {
         ThreadData *thread_data = wait_for_ready_thread(matrix, &control);
 
         pthread_mutex_lock(&thread_data->mutex);
@@ -406,7 +425,7 @@ int search_with_threads(Matrix *matrix, int depth_cutoff) {
 	    thread_printf("Told worker %d to finish\n", thread_data->worker_id);
     }
     
-    for (i = 0; i < NUM_THREADS; i++) {
+    for (i = 0; i < control.num_threads; i++) {
         ThreadData *thread_data = &control.threads[i];
         pthread_join(thread_data->thread, NULL);
         thread_printf("Joined worker %d\n", thread_data->worker_id);
@@ -418,9 +437,8 @@ int search_with_threads(Matrix *matrix, int depth_cutoff) {
     process_messages(matrix, &control);
     
     /* Clean up. */
-    pthread_mutex_destroy(&control.queue.mutex);
-    pthread_cond_destroy(&control.queue.message_available);
-    pthread_cond_destroy(&control.queue.space_available);
+    free(control.threads);
+    teardown_queue(&control.queue);
 
     return result;
 }

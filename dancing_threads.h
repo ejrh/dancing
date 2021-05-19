@@ -5,6 +5,6 @@
 
 #include "dancing.h"
 
-extern int search_with_threads(Matrix *matrix, int depth_cutoff);
+extern int search_with_threads(Matrix *matrix, int depth_cutoff, int num_threads);
 
 #endif

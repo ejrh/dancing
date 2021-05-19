@@ -103,7 +103,7 @@ int basic_main(int argc, char *argv[], CreateProblem create_problem, DestroyProb
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
     
     if (options.num_threads > 0) {
-        search_with_threads(problem->matrix, options.thread_depth);
+        search_with_threads(problem->matrix, options.thread_depth, options.num_threads);
     } else {
         search_matrix(problem->matrix, 0);
     }
