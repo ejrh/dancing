@@ -10,6 +10,59 @@ educational (I didn't know *terpsichorean* was a word until now).
 Anyway, you should go read it.
 
 
+Installation
+------------
+
+Make a new build directory and run cmake in it:
+
+    (mkdir -p build && cd build && cmake -D CMAKE_BUILD_TYPE:STRING=Debug ..)
+
+This will create some Makefiles for building in Debug mode.
+
+You can then simply use make to compile:
+
+    make -C build
+
+
+Running examples
+----------------
+
+If the instructions above are followed, examples will be built in `build/src/examples`.
+
+There are currently three example programs:
+
+  - Pentomines
+  - Queens
+  - Sudoku
+
+These examples all accept a common set of command line options (which you can see by passing the
+`-h` option):
+
+    Options:
+        -j N          Number of workers (default: no multithreading)
+        -d N          Depth at which to fork if multithreading (default: 3)
+        -n N          Problem size (problem-specific)
+        -p            Print matrix (default: no)
+        -z            Print statistics (default: no)
+        -s            Print solutions (default: no)
+        -f FILENAME   Initial problem file (default: no initial problem)
+
+## Examples of examples
+
+Print every way of arranging 8 queens on a standard chessboard:
+
+    build/src/examples/queens -n 8 -s
+
+Print the problem matrix of the "8x8 - 2x2" pentominoes problem from Knuth's paper, and then
+proceed find and print every solution, with some statistics at the end:
+
+    build/src/examples/pentominoes -p -s -z
+
+Find every possible 4x4 Sudoku problem in parallel with 3 worker threads:
+
+    build/src/examples/sudoku -n 4 -j 3 -z
+
+
 Summary of the code
 -------------------
 
