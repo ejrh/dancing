@@ -173,6 +173,7 @@ void destroy_matrix(Matrix *matrix) {
 
 
 Matrix *clone_matrix(Matrix *matrix) {
+#if 0
     Matrix *new_matrix = create_matrix();
     EXTARRAY_COPY(new_matrix->nodes, matrix->nodes);
     EXTARRAY_COPY(new_matrix->headers, matrix->headers);
@@ -199,6 +200,8 @@ Matrix *clone_matrix(Matrix *matrix) {
 #endif
     
     return new_matrix;
+#endif
+    return NULL;
 }
 
 
@@ -221,16 +224,16 @@ void print_matrix(Matrix *matrix) {
                 continue;
             col = 1;
             while (col++ < HEADER(n).index)
-                printf("\t0");
-            printf("\t1");
+                printf("\t");
+            printf("\t*");
             NodeId n3;
             foreachlink(n2, right, n3) {
                 while (col++ < HEADER(NODE(n3).column).index)
-                    printf("\t0");
-                printf("\t1");
+                    printf("\t");
+                printf("\t*");
             }
             while (col++ < HEADER(ROOT).size)
-                printf("\t0");
+                printf("\t");
             printf("\n");
         }
     }
@@ -250,6 +253,10 @@ static NodeId choose_column(Matrix *matrix) {
         if (best_size <= 1)
             break;
         }
+        // if (HEADER(n).size < 1)
+        //     continue;
+        // printf("select %s\n", HEADER(n).name);
+        // return n;
     }
 
     return best_column;
@@ -257,7 +264,7 @@ static NodeId choose_column(Matrix *matrix) {
 
 
 static void cover_column(Matrix *matrix, NodeId column) {
-    //printf("Covering %s\n", column->name);
+    //printf("cover %s\n", HEADER(column).name);
     remove_horizontally(matrix, column);
     NodeId n;
     foreachlink(column, down, n) {
@@ -273,7 +280,7 @@ static void cover_column(Matrix *matrix, NodeId column) {
 
 
 static void uncover_column(Matrix *matrix, NodeId column) {
-    //printf("Uncovering %s\n", column->name);
+    //printf("uncover %s\n", HEADER(column).name);
     restore_horizontally(matrix, column);
     NodeId n;
     foreachlink(column, up, n) {
@@ -308,6 +315,9 @@ void print_solution(Matrix *matrix) {
 
 
 int search_matrix_internal(Matrix *matrix, int depth, int max_depth) {
+    //printf("depth %d\n", depth);
+    //print_matrix(matrix);
+
     int result = 0;
 
     matrix->search_calls++;
@@ -332,6 +342,10 @@ int search_matrix_internal(Matrix *matrix, int depth, int max_depth) {
     NodeId row;
     foreachlink(column, down, row) {
         *solution_spot = row;
+        //printf("add to solution ");
+        //print_row(matrix, row);
+        //printf("\n");
+
         NodeId col;
         foreachlink(row, right, col) {
             cover_column(matrix, NODE(col).column);

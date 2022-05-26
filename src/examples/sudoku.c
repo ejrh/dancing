@@ -131,8 +131,18 @@ static SudokuProblem *create_sudoku_problem(Options *options) {
     matrix->solution_callback = (Callback) print_sudoku;
     matrix->solution_baton = problem;        
 
-    prespecify_sudoku_cell(matrix, 0, 0, 'c');
-    prespecify_sudoku_cell(matrix, 0, 1, 'd');
+    /* Prespecify the first row (without loss of generality). */
+    for (i = 0; i < size; i++) {
+        prespecify_sudoku_cell(matrix, 0, i, symbols[i]);
+        prespecify_sudoku_cell(matrix, 1, i, symbols[(i + 3) % 9]);
+        prespecify_sudoku_cell(matrix, 2, i, symbols[(i + 6) % 9]);
+    }
+    for (i = 3; i < 6; i++) {
+        prespecify_sudoku_cell(matrix, i, 0, symbols[(i * 3 + 1) % 9]);
+        prespecify_sudoku_cell(matrix, i, 1, symbols[(i * 3 + 2) % 9]);
+        prespecify_sudoku_cell(matrix, i, 2, symbols[(i * 3 + 3) % 9]);
+    }
+    
 
     return problem;
 }

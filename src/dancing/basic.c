@@ -92,6 +92,7 @@ int basic_main(int argc, char *argv[], CreateProblem create_problem, DestroyProb
 
     if (options.print_matrix) {
         print_matrix(problem->matrix);    
+        exit(1);
     }
 
     /* If we're not printing the solution, just replace the callback with a quiet one. */

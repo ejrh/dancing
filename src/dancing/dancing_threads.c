@@ -69,7 +69,7 @@ typedef struct ThreadControl {
 static pthread_key_t worker_id_key = 0;
 
 
-#define DEBUG_THREADS 0
+#define DEBUG_THREADS 1
 
 #if DEBUG_THREADS
 static void thread_printf(char *fmt, ...) {
@@ -304,7 +304,7 @@ static int start_thread_search(Matrix *matrix, ThreadControl *control) {
         return 1;
     
     /* Make a clone of the current matrix for the thread to use. */
-    thread_printf("Assigning subsearch to worker %d\n", thread_data->worker_id);
+    thread_printf("Assigning subsearch %d to worker %d\n", matrix->num_subsearches, thread_data->worker_id);
     
     Matrix *submatrix = clone_matrix(matrix);
     thread_printf("Cloned matrix to %p\n", submatrix);
